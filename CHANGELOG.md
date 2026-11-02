@@ -19,6 +19,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Extracted the PreStart and Health screens behind explicit props and dependency contracts
 - Moved preset/Iron Series exercise definitions and muscle metadata into `src/data/exercises.js`
 - Extracted the font stylesheet loader into `src/ui/FontLoader.jsx`
+- Moved warm-up, stretch, configurable mobility groups, and mobility safety metadata into `src/data/mobility.js`
 
 ## 2026-11-02 — Iron Series week/day picker (Codex)
 

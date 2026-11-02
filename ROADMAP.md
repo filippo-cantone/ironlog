@@ -17,8 +17,9 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 1 storage step: backup creation/file reading moved to `src/storage/importExport.js`; malformed and unsupported backup versions are rejected before state changes
 - ✅ Phase 4 screen step: extracted PreStart and Health screens behind explicit props, callbacks, helper contracts, and UI component dependencies
 - ✅ Phase 3 data step: moved preset/Iron Series exercise definitions and muscle metadata to `src/data/exercises.js`
+- ✅ Phase 3 data step: moved warm-up, stretch, configurable mobility groups, and mobility safety metadata to `src/data/mobility.js`
 - ✅ Phase 2 UI step: extracted the font loader into `src/ui/FontLoader.jsx`
-- 🔄 Next: extract stretches/warmup data, then move History, Manage, Dashboard, and ActiveWorkout behind the same App state contract
+- 🔄 Next: move History, Manage, Dashboard, and ActiveWorkout behind the same App state contract
 
 ---
 
