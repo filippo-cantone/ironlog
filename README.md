@@ -94,7 +94,7 @@ ironlog/
 │   ├── ui/theme.js          ← shared colours, typography, and style tokens
 │   ├── ui/charts/           ← shared chart geometry and metric colour helpers
 │   ├── ui/Nav.jsx           ← shared bottom navigation
-│   ├── screens/             ← extracted Health, History, Manage, PreStart, Progress, and Rides screens
+│   ├── screens/             ← extracted Dashboard, Health, History, Manage, PreStart, Progress, and Rides screens
 │   ├── data/workouts.js     ← canonical A/B/C and Iron Series programmes
 │   ├── data/exercises.js    ← preset/Iron Series exercise and muscle metadata
 │   ├── data/mobility.js     ← warm-up, stretch, and mobility safety catalogues

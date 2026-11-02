@@ -8,6 +8,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 
 - Extracted History and Apple Watch workout-effort review into `src/screens/History.jsx`; the screen now receives validated session data and explicit chart/effort helpers through props
 - Extracted Manage, exercise/stretches library, workout builder, and backup controls into `src/screens/Manage.jsx` with explicit state, data, theme, icon, diagram, and modal dependencies
+- Extracted the Dashboard screen into `src/screens/Dashboard.jsx`; readiness, trend, week-strip, and Home insight presentation now receive helper and child-component dependencies from the app root
 - Added a bundled `src/main.jsx` entry point and framework-free domain, storage, health, and Supabase helper modules while preserving the GitHub Pages HTML outputs
 - Added migration/validation tests, explicit active-session exercise metadata, and fixed cloud cardio data being ignored during startup restore
 - Extracted shared theme and style tokens into `src/ui/theme.js` while preserving the existing UI

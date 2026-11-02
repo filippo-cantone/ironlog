@@ -21,7 +21,8 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 2 UI step: extracted the font loader into `src/ui/FontLoader.jsx`
 - ✅ Phase 4 screen step: extracted History and Apple Watch effort review into `src/screens/History.jsx`
 - ✅ Phase 4 screen step: extracted Manage, library, workout-builder, and backup controls into `src/screens/Manage.jsx`
-- 🔄 Next: move Dashboard and ActiveWorkout behind the same App state contract
+- ✅ Phase 4 screen step: extracted Dashboard and its readiness/health presentation wiring into `src/screens/Dashboard.jsx`
+- 🔄 Next: move ActiveWorkout behind the same App state contract, then add browser smoke coverage and finish the build guardrails
 
 ---
 
