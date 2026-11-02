@@ -4,6 +4,11 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
+### Science-first readiness + weekly AI fix — in progress — Codex
+- Replace the unvalidated composite recovery score with an Apple Health SDNN HRV-led readiness protocol.
+- Keep sleep, resting HR, training load, RPE, pain, and Watch effort as transparent context signals.
+- Harden weekly AI request sizing/error reporting and make deterministic fallback explanations useful.
+
 ### Architecture refactor — in progress — Codex
 - Modularise IronLog gradually, beginning with safety/data-integrity foundations while preserving the current GitHub Pages deployment.
 - ✅ AI multi-provider explanation layer — implemented, configured, and deployed 2026-11-02 — Codex
