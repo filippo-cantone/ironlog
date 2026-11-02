@@ -2,6 +2,10 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-03 — Clear completed-set button state (Codex)
+
+- Made completed workout sets use a strong green `✓ Done` button with a visible border and success shadow, clearly distinct from the blue `Start`/running state for easier use without glasses
+
 ## 2026-11-03 — Apple Health freshness and ingestion audit (Codex)
 
 - Fixed [BUG-013](BUGS.md): local Health Auto Export readings now merge with Supabase by date, preserving newer imports and using the local value for same-day conflicts

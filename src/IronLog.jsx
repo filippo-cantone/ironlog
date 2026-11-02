@@ -3337,12 +3337,16 @@ function SetRow({ num, set, def, onUpdate, onStart, onDone, nowMs }) {
           {[0,1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
         </select>
 
-        <button onClick={done ? undefined : started ? onDone : onStart} disabled={done} style={{
-          background: done ? C.green + '33' : started ? C.blue : C.amber, border: 'none', borderRadius: 4,
-          padding: '7px 0', cursor: done ? 'default' : 'pointer', fontSize: 11, width: '100%',
-          color: started ? '#fff' : '#0a0f28', fontFamily: C.fMono, fontWeight: 800, textTransform: 'uppercase',
+        <button onClick={done ? undefined : started ? onDone : onStart} disabled={done} aria-label={done ? `Set ${num} completed` : started ? `Finish set ${num}` : `Start set ${num}`} style={{
+          background: done ? C.green : started ? C.blue : C.amber,
+          border: `2px solid ${done ? C.green : started ? C.blue : C.amber}`,
+          borderRadius: 4,
+          padding: '6px 0', minHeight: 36,
+          cursor: done ? 'default' : 'pointer', fontSize: 11, width: '100%',
+          color: '#fff', fontFamily: C.fMono, fontWeight: 800, textTransform: 'uppercase',
+          boxShadow: done ? `0 0 0 2px ${C.green}33, 0 3px 8px ${C.green}33` : 'none',
         }}>
-          {done ? '✓' : started ? 'Done' : 'Start'}
+          {done ? '✓ Done' : started ? 'Done' : 'Start'}
         </button>
       </div>
       {started && (
