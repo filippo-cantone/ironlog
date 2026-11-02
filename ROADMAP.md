@@ -19,7 +19,8 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 3 data step: moved preset/Iron Series exercise definitions and muscle metadata to `src/data/exercises.js`
 - ✅ Phase 3 data step: moved warm-up, stretch, configurable mobility groups, and mobility safety metadata to `src/data/mobility.js`
 - ✅ Phase 2 UI step: extracted the font loader into `src/ui/FontLoader.jsx`
-- 🔄 Next: move History, Manage, Dashboard, and ActiveWorkout behind the same App state contract
+- ✅ Phase 4 screen step: extracted History and Apple Watch effort review into `src/screens/History.jsx`
+- 🔄 Next: move Manage, Dashboard, and ActiveWorkout behind the same App state contract
 
 ---
 
