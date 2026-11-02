@@ -94,6 +94,7 @@ ironlog/
 │   ├── ui/theme.js          ← shared colours, typography, and style tokens
 │   ├── ui/charts/           ← shared chart geometry and metric colour helpers
 │   ├── ui/Nav.jsx           ← shared bottom navigation
+│   ├── screens/             ← extracted Progress and Rides screens (more to follow)
 │   ├── domain/              ← pure session, health, progression logic
 │   ├── storage/             ← validated persistence and backup helpers
 │   └── integrations/        ← Supabase response and sync helpers
@@ -113,7 +114,7 @@ ironlog/
 
 ## Source File Architecture (`src/IronLog.jsx`)
 
-The remaining legacy UI is still organised inside `src/IronLog.jsx`, but new logic should be placed in the relevant module directory above. The migration is intentionally incremental so the live app remains stable.
+The remaining legacy UI is still organised inside `src/IronLog.jsx`, while extracted screens live in `src/screens/` and receive state through props. New logic should be placed in the relevant module directory above. The migration is intentionally incremental so the live app remains stable.
 
 ### 1. THEME (`C` object)
 All colours and font names in a single object. Change colours here to restyle the whole app.

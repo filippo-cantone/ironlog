@@ -11,6 +11,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Extracted shared theme and style tokens into `src/ui/theme.js` while preserving the existing UI
 - Extracted shared smooth-chart geometry and metric colour classification into `src/ui/charts/metrics.js`, with a focused regression test
 - Extracted the bottom navigation into `src/ui/Nav.jsx` with explicit theme and icon dependencies
+- Extracted the Progress and Rides screens into `src/screens/` with explicit state and persistence callbacks
 
 ## 2026-11-02 — Iron Series week/day picker (Codex)
 

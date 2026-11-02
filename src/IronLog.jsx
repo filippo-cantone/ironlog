@@ -7,6 +7,8 @@ import syncDomain from './integrations/supabase.js';
 import theme from './ui/theme.js';
 import chartDomain from './ui/charts/metrics.js';
 import Nav from './ui/Nav.jsx';
+import ProgressScreen from './screens/Progress.jsx';
+import RidesScreen from './screens/Rides.jsx';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
@@ -8984,9 +8986,9 @@ export default function App() {
         {(view === 'stretch' || view === 'stretch_setup') && <StretchSetup onBegin={() => setView('stretch_active')} onSkip={() => setView('dashboard')} />}
         {view === 'stretch_active' && <StretchActive onDone={() => setView('dashboard')} />}
         {view === 'history' && <History sessions={sessions} setSessions={setSessions} allExercises={allExercises} watchData={watchData} />}
-        {view === 'progress' && <Progress sessions={sessions} allExercises={allExercises} />}
+        {view === 'progress' && <ProgressScreen sessions={sessions} allExercises={allExercises} workouts={WORKOUTS} formatDate={fmtShortDate} Chart={MiniLineChart} />}
         {view === 'health'   && <HealthView sessions={sessions} allExercises={allExercises} healthData={healthData} setHealthData={setHealthData} />}
-        {view === 'rides' && <Rides rides={rides} setRides={setRides} />}
+        {view === 'rides' && <RidesScreen rides={rides} setRides={setRides} onCloudSave={pushRide} />}
         {view === 'manage' && (
           <Manage
             customExercises={customExercises}
