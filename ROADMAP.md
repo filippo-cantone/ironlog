@@ -22,7 +22,10 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 4 screen step: extracted History and Apple Watch effort review into `src/screens/History.jsx`
 - ✅ Phase 4 screen step: extracted Manage, library, workout-builder, and backup controls into `src/screens/Manage.jsx`
 - ✅ Phase 4 screen step: extracted Dashboard and its readiness/health presentation wiring into `src/screens/Dashboard.jsx`
-- 🔄 Next: move ActiveWorkout behind the same App state contract, then add browser smoke coverage and finish the build guardrails
+- ✅ Phase 4 screen step: extracted ActiveWorkout and its session flow behind explicit data, helper, component, and theme contracts
+- ✅ Phase 6 baseline: Node test coverage now protects progression, session migration/timestamps, health and sleep mapping, storage/import validation, cloud conflict comparison, chart primitives, and workout catalogue selection
+- ✅ Browser smoke baseline: verified startup, Home, Health, Workout entry and active set timing, Log, Stats, Rides, and Manage against the generated build
+- 🔄 Next: continue low-risk extraction of remaining shared components and add a repeatable automated browser smoke runner
 
 ---
 

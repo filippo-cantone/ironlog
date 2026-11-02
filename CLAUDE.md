@@ -30,7 +30,7 @@ git status
 
 ## What this is
 
-A personal fitness tracking PWA for Phill (age 51, male, returning to training after ~5 years off). Single React 18 file, deployed to GitHub Pages. No backend beyond Supabase for cloud sync.
+A personal fitness tracking PWA for Phill (age 51, male, returning to training after ~5 years off). React 18 source tree with a gradual modular migration, deployed to GitHub Pages. No backend beyond Supabase for cloud sync.
 
 - **GitHub repo:** `https://github.com/lord-buttock/ironlog`
 - **Live app:** deployed via GitHub Pages from root `index.html` (and mirrored to `dist/index.html`)
@@ -129,8 +129,8 @@ Key sections in order:
 6. **SUPABASE SYNC** — cloud push/restore functions
 7. **UTILITIES** — date formatting, timer helpers, `nextWorkout()`, `buildSession()`
 8. **SVG CHART** — `MiniLineChart` component
-9. **Components** — `Dashboard`, `ActiveWorkout`, `SetRow`, `MuscleDiagram`, `History`, `Progress`, `Rides`, `Manage`, `ActiveStretch`
-10. **App root** — `App()` — state, persistence wiring, renders all screens
+9. **Remaining shared components** — `SetRow`, `MuscleDiagram`, `ActiveStretch`, modal and helper wiring retained during the migration
+10. **App root** — `App()` — global state, navigation, persistence wiring, and screen composition
 
 During the gradual migration, new pure logic belongs in `src/domain/`, validated persistence in `src/storage/`, cloud helpers in `src/integrations/`, and the bundled entry point is `src/main.jsx`.
 

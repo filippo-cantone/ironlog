@@ -94,7 +94,7 @@ ironlog/
 │   ├── ui/theme.js          ← shared colours, typography, and style tokens
 │   ├── ui/charts/           ← shared chart geometry and metric colour helpers
 │   ├── ui/Nav.jsx           ← shared bottom navigation
-│   ├── screens/             ← extracted Dashboard, Health, History, Manage, PreStart, Progress, and Rides screens
+│   ├── screens/             ← extracted Dashboard, ActiveWorkout, Health, History, Manage, PreStart, Progress, and Rides screens
 │   ├── data/workouts.js     ← canonical A/B/C and Iron Series programmes
 │   ├── data/exercises.js    ← preset/Iron Series exercise and muscle metadata
 │   ├── data/mobility.js     ← warm-up, stretch, and mobility safety catalogues
@@ -117,7 +117,7 @@ ironlog/
 
 ## Source File Architecture (`src/IronLog.jsx`)
 
-The remaining legacy UI is still organised inside `src/IronLog.jsx`, while extracted screens live in `src/screens/` and receive state through props. New logic should be placed in the relevant module directory above. The migration is intentionally incremental so the live app remains stable.
+The remaining shared UI and app-root wiring are still organised inside `src/IronLog.jsx`, while extracted screens live in `src/screens/` and receive validated state and explicit dependencies through props. New logic should be placed in the relevant module directory above. The migration is intentionally incremental so the live app remains stable.
 
 ### 1. THEME (`C` object)
 All colours and font names in a single object. Change colours here to restyle the whole app.
@@ -130,6 +130,7 @@ All colours and font names in a single object. Change colours here to restyle th
 - `src/data/exercises.js` — preset/Iron Series exercise definitions and muscle metadata
 - `src/data/mobility.js` — warm-up/stretch catalogues, configurable groups, and safety tags
 - `src/screens/Health.jsx` — Health screen with explicit helper, component, and cloud-import dependencies
+- `src/screens/ActiveWorkout.jsx` — active session flow with explicit workout data, helper, component, and theme dependencies
 - `src/screens/PreStart.jsx` — pre-workout coaching and safe-swap screen
 - `src/ui/FontLoader.jsx` — runtime font stylesheet loader
 - `PRESET_LIBRARY` — additional exercises not in default workouts but available to add

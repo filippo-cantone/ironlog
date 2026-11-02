@@ -8,6 +8,8 @@ The build now uses esbuild with `src/main.jsx` as its entry point. It still writ
 
 This document captures features that are planned but not yet implemented, where the best technical approach hasn't been decided. It is intended for review by AI agents and collaborators — feedback, recommendations, and implementation notes are welcome at the bottom of each section.
 
+Current status: screen extraction has reached Dashboard, ActiveWorkout, History, Manage, Health, PreStart, Progress, and Rides. The app root still owns global state and shared legacy components by design; the next extractions should remain incremental and preserve the GitHub Pages build contract.
+
 Read README.md for full project context before commenting. Key constraints:
 - Single generated HTML file deployed to GitHub Pages (source now bundled at build time)
 - No npm packages that require bundling — CDN or vanilla JS only

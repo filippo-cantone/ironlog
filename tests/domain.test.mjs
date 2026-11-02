@@ -26,20 +26,39 @@ test('progression ignores incomplete sets and gates pain/RPE', () => {
 });
 
 test('session migration creates resumable metadata and preserves set timing', () => {
-  const old = { id: '1', workout: 'A', exercises: [{ id: 'bench', sets: [{ weight: 10, reps: 8, done: false }] }] };
+  const old = {
+    id: '1', workout: 'A', phase: 'workout',
+    exercises: [
+      { id: 'bench', sets: [{ weight: 10, reps: 8, done: true }] },
+      { id: 'row', sets: [{ weight: 8, reps: 8, done: false }] },
+    ],
+  };
   const migrated = migrateSession(old);
+  assert.equal(migrated.currentExerciseIndex, 1);
   const started = withSetStarted(migrated, 0, 0, '2026-11-02T01:00:00.000Z');
   const completed = withSetCompleted(started, 0, 0, '2026-11-02T01:01:00.000Z');
-  assert.equal(completed.currentExerciseIndex, 0);
+  assert.equal(completed.currentExerciseIndex, 1);
   assert.equal(completed.exercises[0].sets[0].setStartedAt, '2026-11-02T01:00:00.000Z');
   assert.equal(completed.exercises[0].sets[0].setCompletedAt, '2026-11-02T01:01:00.000Z');
   assert.equal(completed.exercises[0].sets[0].done, true);
 });
 
 test('health mapping preserves cardio and merges cloud over local when present', () => {
-  const cloud = mapHealthRows([{ metric: 'cardio', date: '2026-11-02', value: 42 }]);
+  const cloud = mapHealthRows([
+    { metric: 'cardio', date: '2026-11-02', value: 42 },
+    { metric: 'hrv', date: '2026-11-02', value: 31 },
+    { metric: 'resting_hr', date: '2026-11-02', value: 76 },
+    { metric: 'blood_oxygen', date: '2026-11-02', value: 97 },
+    { metric: 'sleep', date: '2026-11-02', value: 7.8 },
+    { metric: 'sleep_deep', date: '2026-11-02', value: 1.2 },
+  ]);
   const merged = mergeHealthData(cloud, { cardio: [{ date: '2026-11-01', value: 40 }] });
   assert.deepEqual(merged.cardio, [{ date: '2026-11-02', value: 42 }]);
+  assert.deepEqual(merged.hrv, [{ date: '2026-11-02', value: 31 }]);
+  assert.deepEqual(merged.restingHr, [{ date: '2026-11-02', value: 76 }]);
+  assert.deepEqual(merged.bloodOxygen, [{ date: '2026-11-02', value: 97 }]);
+  assert.deepEqual(merged.sleep, [{ date: '2026-11-02', value: 7.8 }]);
+  assert.deepEqual(merged.sleepDeep, [{ date: '2026-11-02', value: 1.2 }]);
 });
 
 test('sleep score uses duration, efficiency, stages, and awake time', () => {
