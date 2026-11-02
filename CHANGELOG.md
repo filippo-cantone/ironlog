@@ -14,6 +14,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Extracted the Progress and Rides screens into `src/screens/` with explicit state and persistence callbacks
 - Moved the A/B/C and 30-day Iron Series workout catalogue into `src/data/workouts.js` and added a catalogue regression test
 - Moved stage-aware sleep scoring, recovery scoring, baselines, and health trend classification into the tested health domain module
+- Replaced count-only cloud restore decisions with identity/timestamp comparison so equal-size local/cloud conflicts are not silently overwritten
 
 ## 2026-11-02 — Iron Series week/day picker (Codex)
 

@@ -872,7 +872,7 @@ async function pullSessions(localSessions) {
       .eq('user_id', IRONLOG_UID)
       .order('date', { ascending: false });
     if (error || !data) return null;
-    // Only restore if cloud has more sessions — guards against iOS localStorage purge
+    // Restore when cloud is the newer authoritative copy; equal-size conflicts stay local.
     if (shouldRestoreCloud(localSessions, data)) return data.map(r => r.data);
   } catch (e) { console.warn('IronLog restore (sessions):', e); }
   return null;

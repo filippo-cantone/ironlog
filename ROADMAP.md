@@ -13,6 +13,7 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 2 screen step: extracted Progress and Rides behind explicit props and callbacks
 - ✅ Phase 3 data step: moved the canonical A/B/C and 30-day Iron Series workout catalogue to `src/data/workouts.js`
 - ✅ Phase 3 health step: moved stage-aware sleep scoring, recovery scoring, baselines, and health trend classification into `src/domain/health.js`
+- ✅ Phase 1 sync step: cloud restore now compares record identity and timestamps, preserving equal-size local conflicts instead of silently replacing them
 - 🔄 Next: extract the Health screen and exercise/stretches data modules, then move the remaining major screens behind the same App state contract
 
 ---

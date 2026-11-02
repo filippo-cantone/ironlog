@@ -12,7 +12,7 @@ const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
 const { mapHealthRows, mergeHealthData, computeSleepScore, classifyHealthTrend } = health;
 const { safeParse, validateBackup } = store;
-const { shouldRestoreCloud } = supabase;
+const { shouldRestoreCloud, compareSyncRecords } = supabase;
 const { smoothLinePath, metricStatusColor } = charts;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
@@ -66,7 +66,10 @@ test('sleep score uses duration, efficiency, stages, and awake time', () => {
 test('storage helpers reject malformed data without throwing', () => {
   assert.deepEqual(safeParse('{bad json', []), []);
   assert.throws(() => validateBackup({ sessions: {} }), /sessions must be an array/);
-  assert.equal(shouldRestoreCloud([1], [1, 2]), true);
+  assert.equal(shouldRestoreCloud([{ id: 'a' }], [{ id: 'a' }, { id: 'b' }]), true);
+  assert.equal(compareSyncRecords([{ id: 'a', date: '2026-11-01' }], [{ id: 'b', updated_at: '2026-11-02' }]), 'cloud-newer');
+  assert.equal(shouldRestoreCloud([{ id: 'a', date: '2026-11-01' }], [{ id: 'b', updated_at: '2026-11-02' }]), true);
+  assert.equal(compareSyncRecords([{ id: 'a', date: '2026-11-03' }], [{ id: 'b', updated_at: '2026-11-02' }]), 'local-newer');
 });
 
 test('chart primitives produce smooth paths and meaningful status colours', () => {
