@@ -4,6 +4,11 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 
 ---
 
+## 2026-11-02 — Iron Series week/day picker (Codex)
+
+- Added selectable week and day controls to Iron Series so a paused 30-day programme can be resumed from any workout day
+- Added a clear custom-day label and a one-tap return to the next sequence day
+
 ## 2026-06-09 — Sleep score calibration (Codex)
 
 - Recalibrated Sleep Quality so meeting duration, efficiency, deep, REM, and awake-time targets scores as good rather than barely fair; last night's 7.9h / 98% efficient sleep now reads as a strong sleep signal

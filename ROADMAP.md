@@ -27,7 +27,7 @@ Iron Series programme fully integrated. 30-day Caroline Girvan dumbbell programm
 - 🔄 Next: live-device polish after Phill tests Safari/PWA cache, first-screen fit, and whether the recommendation language feels useful during actual training days
 
 ### Iron Series — status
-- 🔄 **in progress — Codex:** add week/day selection so Iron Series can be resumed from any of the 30 programme days
+- ✅ Iron Series week/day picker — choose any of the six programme weeks and any day within that week, or return to the next sequence day
 - ✅ 30-day IRON_WORKOUTS constant with YouTube IDs, equipment lists, superset pairs
 - ✅ 40 IRON_EXERCISES with full definitions, cues, MUSCLE_META entries
 - ✅ IronSeriesView component: week strip, day card, exercise list with icons + muscle pills, equipment checklist, YouTube link, Start button

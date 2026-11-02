@@ -5157,29 +5157,64 @@ function StretchActive({ onDone }) {
 // ACTIVE WORKOUT
 // ═══════════════════════════════════════════════════════════════════════
 function IronSeriesView({ sessions, allExercises, onStart, onDemoOpen }) {
-  const day = nextIronDay(sessions);
+  const nextDay = nextIronDay(sessions);
+  const [selectedDay, setSelectedDay] = useState(nextDay);
+  const day = selectedDay;
   const wkt = getIronWorkout(day);
   const PLAYLIST = 'https://www.youtube.com/playlist?list=PLhu1QCKrfgPWmStsg7imo5EQ0zmkxymJ2';
   const ytUrl = wkt.ytId ? `https://www.youtube.com/watch?v=${wkt.ytId}` : PLAYLIST;
   const week = Math.ceil(day / 5);
+  const sequenceDay = day === nextDay;
   const [expandedEx, setExpandedEx] = useState(null);
   const [ytModal, setYtModal] = useState(false);       // full workout video
   const [demoModal, setDemoModal] = useState(null);    // { id, name } for per-exercise demo
 
   return (
     <div style={{ padding: '16px 14px' }}>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         {[1, 2, 3, 4, 5, 6].map(w => (
-          <div key={w} style={{
+          <button key={w} onClick={() => setSelectedDay((w - 1) * 5 + 1)} style={{
             flex: 1, textAlign: 'center', padding: '5px 0',
             borderRadius: 7, fontSize: 11, fontWeight: 700,
             background: w === week ? C.amber : C.dim,
-            color: w < week ? C.amber : w === week ? '#fff' : C.muted,
-            border: w < week ? `1px solid ${C.amber}` : 'none',
+            color: w === week ? '#fff' : C.muted,
+            border: w === week ? `1px solid ${C.amber}` : `1px solid transparent`,
+            cursor: 'pointer', fontFamily: C.fBase,
           }}>
             Wk {w}
-          </div>
+          </button>
         ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        {[0, 1, 2, 3, 4].map(offset => {
+          const candidateDay = (week - 1) * 5 + offset + 1;
+          const candidate = getIronWorkout(candidateDay);
+          const isSelected = candidateDay === day;
+          return (
+            <button key={candidateDay} onClick={() => setSelectedDay(candidateDay)} style={{
+              flex: 1, minWidth: 0, padding: '7px 3px', borderRadius: 7,
+              background: isSelected ? C.blue : C.card,
+              color: isSelected ? '#fff' : C.muted,
+              border: `1px solid ${isSelected ? C.blue : C.border}`,
+              cursor: 'pointer', fontFamily: C.fBase,
+            }}>
+              <div style={{ fontFamily: C.fMono, fontSize: 9, fontWeight: 700 }}>DAY {candidateDay}</div>
+              <div style={{ fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 3 }}>{candidate.title}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 22, marginBottom: 8 }}>
+        <div style={{ fontFamily: C.fMono, fontSize: 10, color: sequenceDay ? C.green : C.amber, letterSpacing: 0.5 }}>
+          {sequenceDay ? 'NEXT IN SEQUENCE' : 'CUSTOM DAY SELECTED'}
+        </div>
+        {!sequenceDay && (
+          <button onClick={() => setSelectedDay(nextDay)} style={{ background: 'none', border: 'none', color: C.blue, fontFamily: C.fMono, fontSize: 10, cursor: 'pointer', padding: 0 }}>
+            Continue sequence → Day {nextDay}
+          </button>
+        )}
       </div>
 
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 12 }}>
