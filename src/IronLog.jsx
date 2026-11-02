@@ -2735,6 +2735,11 @@ function AiInsightModal({ state, onClose, onRetry }) {
             <div style={{ ...st.card(), marginBottom: 12 }}>
               <div style={{ ...st.label, marginBottom: 6 }}>Limitations</div>
               <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.45 }}>{insight.limitations.join(' ')}</div>
+              {state.status === 'fallback' && state.error && (
+                <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.4, marginTop: 7 }}>
+                  AI service note: {state.error}
+                </div>
+              )}
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>

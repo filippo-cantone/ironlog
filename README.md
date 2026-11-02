@@ -126,7 +126,7 @@ IronLog can optionally explain existing deterministic results with a multi-provi
 
 - `src/domain/aiContext.js` builds bounded summaries of health history, completed training, Watch effort aggregates, and rules results. Raw Health Auto Export files, ECG data, notes, set timestamps, and raw Watch samples are excluded.
 - `src/integrations/aiCoach.js` handles consent, the `il_ai_insights` cache, response validation, and deterministic fallback.
-- `supabase/functions/ironlog-ai-explain/index.ts` tries Groq first, then Cloudflare Workers AI models, and returns structured JSON only.
+- `supabase/functions/ironlog-ai-explain/index.ts` tries Groq first, then Cloudflare Workers AI models, returns structured JSON only, and advances for transient or provider-specific model/request-shape failures while stopping on authentication and validation failures.
 - AI explanations are available from readiness, sleep, HRV, resting HR, Watch effort, workout effort, exercise progression, and the Health weekly review.
 - The first request shows a disclosure. AI can be disabled in **Manage → Backup**. The app remains fully useful without provider credentials.
 

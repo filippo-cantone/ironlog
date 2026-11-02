@@ -27,6 +27,7 @@ const providers = [
 ];
 
 const retryableStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
+const hardFailureStatuses = new Set([401, 403, 422]);
 const allowedModes = new Set(['metric_explanation', 'workout_explanation', 'weekly_review']);
 
 function json(body, status = 200) {
@@ -54,6 +55,29 @@ function parseJson(text) {
     if (start >= 0 && end > start) return JSON.parse(clean.slice(start, end + 1));
     throw error;
   }
+}
+
+function providerContent(body) {
+  const content = body?.choices?.[0]?.message?.content
+    || body?.result?.choices?.[0]?.message?.content
+    || body?.output_text;
+  if (Array.isArray(content)) return content.map(part => part?.text || '').join('');
+  return content;
+}
+
+function providerFailureIsRetryable(status, bodyText = '') {
+  const code = Number(status);
+  if (hardFailureStatuses.has(code)) return false;
+  if (retryableStatuses.has(code)) return true;
+  // A provider can reject a valid, already-validated summary because its
+  // model endpoint has a smaller context window or different request shape.
+  // Those provider-specific compatibility failures should still reach the
+  // configured fallback model. Authentication and validation failures above
+  // remain hard failures and do not cascade.
+  if (code === 400 || code === 413) {
+    return /context|token|model|parameter|format|json|length|request shape/i.test(bodyText);
+  }
+  return false;
 }
 
 function buildMessages(payload) {
@@ -102,12 +126,13 @@ async function callProvider(provider, payload, env) {
     });
     const durationMs = Date.now() - started;
     if (!response.ok) {
-      const retryable = retryableStatuses.has(response.status);
+      const providerError = await response.text();
+      const retryable = providerFailureIsRetryable(response.status, providerError);
       logSafe({ event: 'provider_failure', provider: provider.name, model: provider.model, durationMs, status: response.status, retryable });
       return { error: true, retryable, status: response.status };
     }
     const body = await response.json();
-    const content = body?.choices?.[0]?.message?.content || body?.result?.choices?.[0]?.message?.content;
+    const content = providerContent(body);
     const insight = parseJson(content);
     if (!validateInsight(insight)) {
       logSafe({ event: 'provider_invalid_output', provider: provider.name, model: provider.model, durationMs });

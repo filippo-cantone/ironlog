@@ -6,7 +6,7 @@ Read README.md first for full project context, user profile, medical constraints
 
 ### Architecture refactor — in progress — Codex
 - Modularise IronLog gradually, beginning with safety/data-integrity foundations while preserving the current GitHub Pages deployment.
-- ✅ AI multi-provider explanation layer — implementation complete 2026-11-02 — Codex; provider secrets/deployment pending
+- ✅ AI multi-provider explanation layer — implemented, configured, and deployed 2026-11-02 — Codex
 - ✅ Phase 1 foundation: module entry point, esbuild bundle, validated backup/storage helpers, session migration metadata, progression modules/tests, health mapping, and cloud cardio restore fix
 - ✅ Phase 2 first step: extracted shared theme/style tokens into `src/ui/theme.js` without changing screen behaviour
 - ✅ Phase 2 chart step: extracted smooth-line geometry and metric colour classification into `src/ui/charts/metrics.js` with automated coverage
@@ -36,7 +36,7 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ AI entry points added to readiness, health metrics, sleep, Watch effort, workout effort, exercise progression, and Health weekly review
 - ✅ First-use disclosure and Manage → Backup AI setting added
 - ✅ Node tests cover context privacy/size, cache expiry, response schema, fallback policy, and deterministic fallback
-- ⏳ Configure `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` as Supabase secrets, then deploy the Edge Function
+- ✅ Configure `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` as Supabase secrets and deploy the Edge Function — Supabase version 2 live 2026-11-02
 
 ---
 
