@@ -4,6 +4,14 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 
 ---
 
+## 2026-11-02 — Multi-provider AI explanation layer (Codex)
+
+- Added bounded full-history AI context summaries that exclude raw Health Auto Export, ECG, notes, set timestamps, and raw Watch samples
+- Added Groq → Cloudflare Workers AI fallback Edge Function source with safe retry policy, structured output validation, provider telemetry, and no health-payload logging
+- Added opt-in first-use disclosure, AI enable/disable setting, local insight cache, deterministic fallback, and low-confidence sparse-data labelling
+- Added Explain with AI actions for readiness, sleep, HRV, resting HR, Watch/workout effort, exercise progression, and Health weekly review
+- Added AI context, privacy, schema, cache, and fallback-policy tests; provider credentials and Edge Function deployment remain setup steps
+
 ## 2026-11-02 — Modularisation foundation (Codex)
 
 - Extracted History and Apple Watch workout-effort review into `src/screens/History.jsx`; the screen now receives validated session data and explicit chart/effort helpers through props

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from '../runtime.js';
 import defaultTheme from '../ui/theme.js';
 
-export default function ActiveWorkout({ sessions, activeSession, setActiveSession, onComplete, setView, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, onDemoOpen, onWarmupOpen, coachRec, showWhy, setShowWhy, recovery, watchData, helpers = {}, components = {}, data = {}, theme: themeProps = defaultTheme }) {
+export default function ActiveWorkout({ sessions, activeSession, setActiveSession, onComplete, setView, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, onDemoOpen, onWarmupOpen, coachRec, showWhy, setShowWhy, recovery, watchData, onAiExplain, helpers = {}, components = {}, data = {}, theme: themeProps = defaultTheme }) {
   const { C, st } = themeProps;
   const { EXERCISES = {}, WORKOUTS = {} } = data;
   const {
@@ -499,6 +499,7 @@ export default function ActiveWorkout({ sessions, activeSession, setActiveSessio
             sessions={sessions}
             recovery={recovery}
             watchData={watchData}
+            onAiExplain={onAiExplain}
             onClose={() => setShowExerciseInsight(false)}
           />
         )}

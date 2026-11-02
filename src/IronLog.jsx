@@ -20,6 +20,8 @@ import workoutData from './data/workouts.js';
 import exerciseData from './data/exercises.js';
 import mobilityData from './data/mobility.js';
 import importExportDomain from './storage/importExport.js';
+import buildAiContext from './domain/aiContext.js';
+import aiCoachDomain from './integrations/aiCoach.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
@@ -36,6 +38,9 @@ const {
   saveStretchChoice, resetStretchConfig, fmtStretchDur,
 } = mobilityData;
 const { downloadBackup, readBackup } = importExportDomain;
+const {
+  requestAiExplanation, makeDeterministicInsight, readAiSetting, writeAiSetting,
+} = aiCoachDomain;
 
 // ═══════════════════════════════════════════════════════════════════════
 // THEME
@@ -2483,7 +2488,7 @@ function readinessChips(recovery, healthData, watchSummary) {
   return chips.slice(0, 3);
 }
 
-function ReadinessInsightModal({ recovery, fatigue, healthData, watchSummary, onClose }) {
+function ReadinessInsightModal({ recovery, fatigue, healthData, watchSummary, onClose, onAiExplain }) {
   const verdict = readinessVerdict(recovery, fatigue, watchSummary);
   const chips = readinessChips(recovery, healthData, watchSummary);
   const latestHrv = getLatestReading(healthData?.hrv || []);
@@ -2547,6 +2552,17 @@ function ReadinessInsightModal({ recovery, fatigue, healthData, watchSummary, on
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.45 }}>
             Pain and recovery gates come first. Sleep now uses duration, efficiency, deep sleep, REM sleep, and awake time where available, so a short but efficient night is treated differently from a restless one.
           </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <AiExplainButton onClick={() => onAiExplain?.({
+            mode: 'metric_explanation', focus: 'readiness',
+            rulesResult: {
+              title: verdict.title,
+              summary: verdict.body,
+              recommendation: verdict.body,
+              evidence: rows.map(row => ({ signal: row.label, value: row.value, meaning: 'Used by IronLog readiness rules.' })),
+            },
+          })} />
         </div>
       </div>
     </div>
@@ -2639,6 +2655,100 @@ function HomeInsightShell({ title, tone = C.blue, onClose, children }) {
   );
 }
 
+function AiExplainButton({ onClick, loading = false, compact = false }) {
+  return (
+    <button onClick={onClick} disabled={loading} style={{
+      ...st.ghost,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+      color: C.blue, borderColor: C.blue + '55', fontSize: compact ? 10 : 11,
+      padding: compact ? '7px 10px' : '9px 12px', opacity: loading ? 0.6 : 1,
+    }}>
+      <Icon name="sparkles" size={14} color={C.blue} />
+      {loading ? 'Explaining…' : 'Explain with AI'}
+    </button>
+  );
+}
+
+function AiConsentModal({ onAccept, onDecline, onClose }) {
+  return (
+    <HomeInsightShell title="AI explanations" tone={C.blue} onClose={onClose}>
+      <div style={{ ...st.card(C.blue + '10'), borderLeft: `3px solid ${C.blue}`, marginBottom: 12 }}>
+        <div style={{ ...st.label, color: C.blue, marginBottom: 6 }}>Before you continue</div>
+        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
+          IronLog can send a compact summary of your health and workout history to the configured AI providers so it can explain patterns in plain language.
+        </div>
+      </div>
+      <div style={{ ...st.card(), marginBottom: 12 }}>
+        <div style={{ ...st.label, marginBottom: 6 }}>What is shared</div>
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+          Summary values and trends only. Raw Apple Health exports, ECG readings, notes, and individual Watch samples are not sent. AI explanations do not replace IronLog’s safety rules or medical advice.
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <button onClick={onDecline} style={{ ...st.ghost }}>Not now</button>
+        <button onClick={onAccept} style={{ ...st.btn(), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          <Icon name="sparkles" size={15} color="#fff" /> Enable AI
+        </button>
+      </div>
+    </HomeInsightShell>
+  );
+}
+
+function AiInsightModal({ state, onClose, onRetry }) {
+  if (!state) return null;
+  const insight = state.insight;
+  const tone = state.status === 'loading' ? C.blue : insight?.deterministic ? C.amber : C.green;
+  return (
+    <HomeInsightShell title={insight?.title || 'AI explanation'} tone={tone} onClose={onClose}>
+      {state.status === 'loading' ? (
+        <div style={{ ...st.card(C.blue + '10'), borderLeft: `3px solid ${C.blue}`, color: C.muted, lineHeight: 1.5 }}>
+          IronLog is preparing a summary and asking the available explanation service. Your existing rules remain in control while it loads.
+        </div>
+      ) : (
+        <>
+          {insight?.deterministic && (
+            <div style={{ ...st.pill(C.amber), display: 'inline-flex', marginBottom: 10 }}>IronLog fallback explanation</div>
+          )}
+          <div style={{ ...st.card(tone + '10'), borderLeft: `3px solid ${tone}`, marginBottom: 12 }}>
+            <div style={{ ...st.label, color: tone, marginBottom: 6 }}>Summary</div>
+            <div style={{ fontSize: 14, color: C.text, lineHeight: 1.5 }}>{insight?.summary || state.error || 'No explanation is available.'}</div>
+          </div>
+          {insight?.evidence?.length > 0 && (
+            <div style={{ ...st.card(), marginBottom: 12 }}>
+              <div style={{ ...st.label, marginBottom: 7 }}>Evidence</div>
+              {insight.evidence.map((item, index) => (
+                <div key={`${item.signal}-${index}`} style={{ padding: '8px 0', borderTop: `1px solid ${C.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: C.muted }}>{item.signal}</span>
+                    <span style={{ fontSize: 12, color: C.text, fontWeight: 700, textAlign: 'right' }}>{item.value}</span>
+                  </div>
+                  {item.meaning && <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginTop: 3 }}>{item.meaning}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ ...st.card(C.blue + '0c'), borderColor: C.blue + '33', marginBottom: 12 }}>
+            <div style={{ ...st.label, color: C.blue, marginBottom: 6 }}>Recommendation</div>
+            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{insight?.recommendation}</div>
+          </div>
+          {insight?.limitations?.length > 0 && (
+            <div style={{ ...st.card(), marginBottom: 12 }}>
+              <div style={{ ...st.label, marginBottom: 6 }}>Limitations</div>
+              <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.45 }}>{insight.limitations.join(' ')}</div>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <span style={{ ...st.mono(9, C.muted) }}>
+              {insight?.provider ? `${insight.provider} · ${insight.model || 'model'} · ` : ''}Confidence {insight?.confidence || 'low'}
+            </span>
+            {state.status === 'fallback' && <button onClick={onRetry} style={{ ...st.ghost, color: C.blue, borderColor: C.blue + '55', padding: '6px 9px', fontSize: 10 }}>Try again</button>}
+          </div>
+        </>
+      )}
+    </HomeInsightShell>
+  );
+}
+
 function metricInsightCopy(metric, latest, base, caption) {
   const val = Number(latest?.value);
   if (metric.key === 'hrv') return {
@@ -2663,7 +2773,7 @@ function metricInsightCopy(metric, latest, base, caption) {
   };
 }
 
-function HomeMetricInsightModal({ metric, healthData, onClose }) {
+function HomeMetricInsightModal({ metric, healthData, onClose, onAiExplain }) {
   const data = metric?.data || [];
   const latest = getLatestReading(data);
   const base = rollingAvg(data, 7);
@@ -2712,6 +2822,20 @@ function HomeMetricInsightModal({ metric, healthData, onClose }) {
         <div style={{ ...st.label, color: C.blue, marginBottom: 6 }}>Recommendation</div>
         <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>{copy.recommendation}</div>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+        <AiExplainButton onClick={() => onAiExplain?.({
+          mode: 'metric_explanation', focus: metric.title,
+          rulesResult: {
+            title: metric.title,
+            summary: copy.meaning,
+            recommendation: copy.recommendation,
+            evidence: [
+              { signal: 'Today', value: display, meaning: caption },
+              { signal: '7-day baseline', value: base ? `${Math.round(base * 10) / 10} ${metric.unit || ''}`.trim() : 'Not available', meaning: 'IronLog compares today with the recent baseline.' },
+            ],
+          },
+        })} />
+      </div>
     </HomeInsightShell>
   );
 }
@@ -2727,7 +2851,7 @@ function sleepRecommendation(score) {
   return 'Sleep is a limiting factor today. Treat strength work as technique practice, mobility, or recovery unless your warm-up feels unusually good.';
 }
 
-function SleepInsightModal({ healthData, onClose }) {
+function SleepInsightModal({ healthData, onClose, onAiExplain }) {
   const score = computeSleepScore(healthData);
   const tone = score?.color || C.amber;
   const rows = score ? [
@@ -2776,11 +2900,22 @@ function SleepInsightModal({ healthData, onClose }) {
         <div style={{ ...st.label, color: C.blue, marginBottom: 6 }}>Recommendation</div>
         <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>{sleepRecommendation(score)}</div>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+        <AiExplainButton onClick={() => onAiExplain?.({
+          mode: 'metric_explanation', focus: 'sleep',
+          rulesResult: {
+            title: 'Sleep quality',
+            summary: score ? `${score.score}% · ${score.label} sleep quality.` : 'Sleep data is missing.',
+            recommendation: sleepRecommendation(score),
+            evidence: rows.map(row => ({ signal: row[0], value: row[1], meaning: 'Included in IronLog sleep scoring where available.' })),
+          },
+        })} />
+      </div>
     </HomeInsightShell>
   );
 }
 
-function WatchEffortInsightModal({ watchSummary, onClose }) {
+function WatchEffortInsightModal({ watchSummary, onClose, onAiExplain }) {
   const m = watchSummary?.latestMatch;
   return (
     <HomeInsightShell title="Watch effort" tone={watchSummary?.hardCount > 0 ? C.amber : C.blue} onClose={onClose}>
@@ -2814,11 +2949,25 @@ function WatchEffortInsightModal({ watchSummary, onClose }) {
           Watch effort is a load signal. When it is high alongside low HRV or elevated resting HR, IronLog recommends recovery or a lighter session.
         </div>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+        <AiExplainButton onClick={() => onAiExplain?.({
+          mode: 'workout_explanation', focus: 'Watch effort',
+          rulesResult: {
+            title: 'Watch effort',
+            summary: m ? `${m.name || 'Latest matched workout'} recorded ${Math.round(Number(m.avg_heart_rate) || 0)} average bpm.` : 'No matched Apple Watch workout is available yet.',
+            recommendation: 'Use Watch effort as load context alongside recovery, pain, and strength performance.',
+            evidence: m ? [
+              { signal: 'Duration', value: `${Math.round((Number(m.watch_duration_sec) || 0) / 60)} min`, meaning: 'Matched workout duration.' },
+              { signal: 'Heart rate', value: `${Math.round(Number(m.avg_heart_rate) || 0)} avg · ${Math.round(Number(m.max_heart_rate) || 0)} peak`, meaning: 'Session cardiovascular effort.' },
+            ] : [],
+          },
+        })} />
+      </div>
     </HomeInsightShell>
   );
 }
 
-function TrendInsightModal({ healthData, trendDays, onClose }) {
+function TrendInsightModal({ healthData, trendDays, onClose, onAiExplain }) {
   const insight = computeTrendInsight(healthData);
   return (
     <HomeInsightShell title="Recovery trend" tone={C.blue} onClose={onClose}>
@@ -2843,6 +2992,17 @@ function TrendInsightModal({ healthData, trendDays, onClose }) {
         <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>
           Rising HRV with stable or lower resting HR is usually a positive recovery signal. Falling HRV plus elevated resting HR is a reason to reduce intensity.
         </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+        <AiExplainButton onClick={() => onAiExplain?.({
+          mode: 'metric_explanation', focus: 'recovery trend',
+          rulesResult: {
+            title: 'Recovery trend',
+            summary: insight || 'Trend needs more readings before it can be interpreted.',
+            recommendation: 'Use the trend with sleep, pain, and training effort rather than relying on one reading.',
+            evidence: [{ signal: 'Window', value: `${trendDays} days`, meaning: 'HRV and resting HR are compared across this period.' }],
+          },
+        })} />
       </div>
     </HomeInsightShell>
   );
@@ -4278,7 +4438,7 @@ function IronSeriesView({ sessions, allExercises, onStart, onDemoOpen }) {
   );
 }
 
-function ExerciseInsightModal({ exId, def, sessions, recovery, watchData, onClose }) {
+function ExerciseInsightModal({ exId, def, sessions, recovery, watchData, onClose, onAiExplain }) {
   const points = exerciseHistoryPoints(sessions, exId, watchData);
   const lastEntry = findLastExerciseEntry(sessions, exId);
   const recommendation = recommendExerciseProgression(lastEntry, def, recovery, watchData);
@@ -4360,6 +4520,20 @@ function ExerciseInsightModal({ exId, def, sessions, recovery, watchData, onClos
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.45 }}>
             IronLog compares performance, RPE, pain, recovery, and Watch effort. Pain and low recovery block progression first; load or reps only increase when the safer signals agree.
           </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <AiExplainButton onClick={() => onAiExplain?.({
+            mode: 'metric_explanation', focus: `exercise progression: ${def?.name || exId}`,
+            rulesResult: {
+              title: `${def?.name || exId} progression`,
+              summary: recommendation?.body || 'Exercise history is available for review.',
+              recommendation: recommendation?.body || 'Use the displayed progression guidance and keep pain and RPE safeguards in place.',
+              evidence: [
+                { signal: 'Exercise', value: def?.name || exId, meaning: 'Exercise selected for progression review.' },
+                ...(effort?.status === 'ok' ? [{ signal: 'Watch effort', value: `${effort.avgHr} avg · ${effort.maxHr} peak bpm`, meaning: `${effort.confidence} confidence sample.` }] : []),
+              ],
+            },
+          })} />
         </div>
       </div>
     </div>
@@ -4944,6 +5118,11 @@ export default function App() {
   const [driveSync, setDriveSync] = useState({ status: 'idle', lastSync: null, error: null });
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(() => readAiSetting().enabled);
+  const [aiConsent, setAiConsent] = useState(() => readAiSetting().consent);
+  const [aiConsentOpen, setAiConsentOpen] = useState(false);
+  const [aiState, setAiState] = useState(null);
+  const [aiPendingRequest, setAiPendingRequest] = useState(null);
   const [preStartSwaps, setPreStartSwaps] = useState({});
   const [ironView, setIronView] = useState(false);
   const [healthData, setHealthData] = useState({
@@ -5035,6 +5214,8 @@ export default function App() {
   useEffect(() => { if (ready) save('il_health_sleep_awake', healthData.sleepAwake); }, [healthData.sleepAwake, ready]);
   useEffect(() => { if (ready) save('il_health_sleep_in_bed', healthData.sleepInBed); }, [healthData.sleepInBed, ready]);
   useEffect(() => { if (ready) save('il_health_sleep_efficiency', healthData.sleepEfficiency); }, [healthData.sleepEfficiency, ready]);
+  useEffect(() => { if (ready) writeAiSetting({ enabled: aiEnabled }); }, [aiEnabled, ready]);
+  useEffect(() => { if (ready) writeAiSetting({ consent: aiConsent }); }, [aiConsent, ready]);
 
   function handleExport() {
     exportData(dataRef.current);
@@ -5071,6 +5252,64 @@ export default function App() {
     } catch (e) {
       setDriveSync(s => ({ ...s, cloudStatus: 'error' }));
     }
+  }
+
+  async function runAiExplanation(request) {
+    if (!request) return;
+    const context = buildAiContext({
+      healthData,
+      sessions,
+      watchData,
+      recovery,
+      coachRec,
+      allExercises,
+      focus: request.focus,
+    });
+    const payload = {
+      mode: request.mode || 'metric_explanation',
+      focus: request.focus || 'IronLog',
+      context,
+      rulesResult: request.rulesResult || {},
+    };
+    setAiState({ status: 'loading', request });
+    const result = await requestAiExplanation({ dbClient: db, payload });
+    if (result.status === 'success' || result.status === 'cached') {
+      setAiState({ ...result, request });
+      return;
+    }
+    const sparse = context.training.count < 2 || (context.watch.count > 0 && context.watch.sampleCount < 4);
+    setAiState({
+      status: 'fallback',
+      error: result.error,
+      request,
+      insight: makeDeterministicInsight({ focus: request.focus, rulesResult: request.rulesResult, sparse }),
+    });
+  }
+
+  function handleAiExplain(request) {
+    if (!request) return;
+    if (!aiEnabled) {
+      setAiState({
+        status: 'fallback',
+        request,
+        insight: makeDeterministicInsight({ focus: request.focus, rulesResult: request.rulesResult, sparse: true }),
+      });
+      return;
+    }
+    if (!aiConsent) {
+      setAiPendingRequest(request);
+      setAiConsentOpen(true);
+      return;
+    }
+    runAiExplanation(request);
+  }
+
+  function acceptAiConsent() {
+    setAiConsent(true);
+    setAiConsentOpen(false);
+    const request = aiPendingRequest;
+    setAiPendingRequest(null);
+    if (request) runAiExplanation(request);
   }
 
   function handleComplete(sess) {
@@ -5125,7 +5364,7 @@ export default function App() {
             updateAvailable={updateAvailable} onWarmupOpen={setWarmupDemoItem}
             onDemoOpen={setDemoExId}
             coachRec={coachRec} showWhy={showWhy} setShowWhy={setShowWhy}
-            healthData={healthData} watchData={watchData}
+            healthData={healthData} watchData={watchData} onAiExplain={handleAiExplain}
             helpers={{ computeRecovery, computeFatigue, computeTrainingLoad, computeTrendInsight, summarizeWatchEffort, timeGreeting, weekStart, weekMondayStart, workoutDisplay, fmtDate }}
             components={{ Icon, ReadinessSummaryCard, ReadinessInsightModal, HomeMetricInsightModal, WatchEffortInsightModal, SleepInsightModal, TrendInsightModal, DailySignalsStrip, RecoveryTrendCard, ThisWeekSummaryCard, WeeklyHeatmap, RecentWorkoutsSection }}
             theme={theme} />
@@ -5182,6 +5421,7 @@ export default function App() {
                 setShowWhy={setShowWhy}
                 recovery={recovery}
                 watchData={watchData}
+                onAiExplain={handleAiExplain}
                 helpers={{ buildSession, getIronWorkout, getLastLogged, findLastExerciseEntry, recommendExerciseProgression, detectPRs, checkOverloadNudges, fmtTimer, resetWarmupConfig }}
                 components={{ SetRow, WorkoutPlanCard, StretchRoutineCard, WarmupSetup, WarmupPicker, WarmupActive, ExerciseInsightModal, YouTubeModal, ExerciseIcon, MuscleDiagram }}
                 data={{ EXERCISES, WORKOUTS }}
@@ -5198,6 +5438,7 @@ export default function App() {
             setSessions={setSessions}
             allExercises={allExercises}
             watchData={watchData}
+            onAiExplain={handleAiExplain}
             helpers={{
               WORKOUTS,
               getIronWorkout,
@@ -5217,6 +5458,7 @@ export default function App() {
             setHealthData={setHealthData}
             Icon={Icon}
             onHealthPush={pushHealthMetrics}
+            onAiExplain={handleAiExplain}
             helpers={{
               HEALTH_METRICS,
               healthWeeklyVolume,
@@ -5257,6 +5499,9 @@ export default function App() {
             onDriveSave={handleExport}
             onDriveLoad={handleImport}
             onCloudSync={handleCloudSync}
+            aiEnabled={aiEnabled}
+            setAiEnabled={setAiEnabled}
+            aiConsent={aiConsent}
             onDemoOpen={setDemoExId}
             data={{ EXERCISES, PRESET_LIBRARY, IRON_EXERCISES, WORKOUTS, STRETCH_LIBRARY }}
             components={{ ExerciseIcon, MuscleDiagram, YouTubeModal, StretchDemoModal }}
@@ -5265,6 +5510,8 @@ export default function App() {
         )}
       </div>
       <Nav view={view} setView={setView} hasActive={!!activeSession} Icon={Icon} />
+      {aiConsentOpen && <AiConsentModal onAccept={acceptAiConsent} onDecline={() => { setAiConsentOpen(false); setAiPendingRequest(null); }} onClose={() => { setAiConsentOpen(false); setAiPendingRequest(null); }} />}
+      {aiState && <AiInsightModal state={aiState} onClose={() => setAiState(null)} onRetry={() => runAiExplanation(aiState.request)} />}
       {demoExId && <ExerciseDemoModal exerciseId={demoExId} onClose={() => setDemoExId(null)} />}
       {warmupDemoItem && <WarmupDemoModal item={warmupDemoItem} onClose={() => setWarmupDemoItem(null)} />}
     </>

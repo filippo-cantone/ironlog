@@ -5,7 +5,7 @@ const { C, st } = theme;
 
 // HEALTH VIEW
 // ═══════════════════════════════════════════════════════════════════════
-export default function HealthView({ sessions, allExercises, healthData, setHealthData, Icon, onHealthPush, helpers, components }) {
+export default function HealthView({ sessions, allExercises, healthData, setHealthData, Icon, onHealthPush, onAiExplain, helpers, components }) {
   const {
     HEALTH_METRICS, healthWeeklyVolume, healthVolumeByGroup, healthConsistency, healthRecentPRs,
     healthRPETrend, healthWorkoutCorrelation, readinessFactors, localDateStr, lastNDaysReadings,
@@ -343,6 +343,29 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
       >
         <HealthFactorGrid factors={readiness.factors} />
       </HealthInsightCard>
+      <div style={{ ...st.card(C.blue + '08'), borderColor: C.blue + '33', marginTop: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+          <div>
+            <div style={{ ...st.label, color: C.blue, marginBottom: 4 }}>Weekly health review</div>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.4 }}>Ask for a plain-language summary of recovery, sleep, movement, and training relationships.</div>
+          </div>
+          <button onClick={() => onAiExplain?.({
+            mode: 'weekly_review', focus: 'weekly health review',
+            rulesResult: {
+              title: 'Weekly health review',
+              summary: readiness.summary,
+              recommendation: 'Use the strongest positive pattern as the focus for next week, while respecting pain and recovery safeguards.',
+              evidence: [
+                { signal: 'Readiness', value: readiness.recovery ? `${readiness.recovery.score}% · ${readiness.recovery.label}` : 'Not available', meaning: 'Current rules-based recovery result.' },
+                { signal: 'Training consistency', value: `${consistency.totalThisMonth} sessions in 28 days`, meaning: 'Recent completed-session frequency.' },
+                ...(hrvCorrelation ? [{ signal: 'HRV/workout relationship', value: `${hrvCorrelation.pct}% on workout days`, meaning: 'Descriptive relationship, not proof of cause.' }] : []),
+              ],
+            },
+          })} style={{ ...st.ghost, color: C.blue, borderColor: C.blue + '55', whiteSpace: 'nowrap', fontSize: 10 }}>
+            ✦ Weekly review
+          </button>
+        </div>
+      </div>
 
       <div style={{ marginTop: 24 }}>
         {sectionHeader('Sleep', 'moon')}

@@ -90,9 +90,11 @@ This project is worked on by **Claude Code** (design, spec, review) and **Codex*
 | Charts | Custom SVG (`MiniLineChart`) | Recharts blocked by GitHub Pages CSP |
 | Styling | Inline styles (React style objects) | All in one file |
 | Storage | `localStorage` | Per-device persistence |
-| Cloud sync | Supabase REST API | Count-based restore; blocked during active session |
+| Cloud sync | Supabase REST API | Identity/timestamp restore; blocked during active session |
 | Hosting | GitHub Pages | Auto-deploys on push to main |
 | Fonts | Google Fonts CDN | Barlow Condensed, Barlow, JetBrains Mono |
+
+The generated deployment remains a single HTML artifact, but the source is modular. New domain logic belongs in `src/domain/`, persistence in `src/storage/`, integrations in `src/integrations/`, shared UI in `src/ui/`, and screen-specific UI in `src/screens/`.
 
 **What was tried and abandoned:**
 - Google Apps Script — file too large (116KB), `doGet` failed

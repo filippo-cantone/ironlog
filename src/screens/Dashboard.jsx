@@ -1,7 +1,7 @@
 import React, { useState } from '../runtime.js';
 import defaultTheme from '../ui/theme.js';
 
-export default function Dashboard({ sessions, rides, setView, activeSession, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, driveSync, onCloudSync, updateAvailable, onWarmupOpen, onDemoOpen, coachRec, showWhy, setShowWhy, healthData, watchData, helpers = {}, components = {}, theme: themeProps = defaultTheme }) {
+export default function Dashboard({ sessions, rides, setView, activeSession, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, driveSync, onCloudSync, updateAvailable, onWarmupOpen, onDemoOpen, coachRec, showWhy, setShowWhy, healthData, watchData, onAiExplain, helpers = {}, components = {}, theme: themeProps = defaultTheme }) {
   const { C, st, dash } = themeProps;
   const {
     computeRecovery, computeFatigue, computeTrainingLoad, computeTrendInsight,
@@ -114,19 +114,20 @@ export default function Dashboard({ sessions, rides, setView, activeSession, sel
           healthData={hd}
           watchSummary={watchSummary}
           onClose={() => setShowReadinessInsight(false)}
+          onAiExplain={onAiExplain}
         />
       )}
       {homeInsight?.type === 'metric' && (
-        <HomeMetricInsightModal metric={homeInsight.metric} healthData={hd} onClose={() => setHomeInsight(null)} />
+        <HomeMetricInsightModal metric={homeInsight.metric} healthData={hd} onClose={() => setHomeInsight(null)} onAiExplain={onAiExplain} />
       )}
       {homeInsight?.type === 'watch' && (
-        <WatchEffortInsightModal watchSummary={watchSummary} onClose={() => setHomeInsight(null)} />
+        <WatchEffortInsightModal watchSummary={watchSummary} onClose={() => setHomeInsight(null)} onAiExplain={onAiExplain} />
       )}
       {homeInsight?.type === 'sleep' && (
-        <SleepInsightModal healthData={hd} onClose={() => setHomeInsight(null)} />
+        <SleepInsightModal healthData={hd} onClose={() => setHomeInsight(null)} onAiExplain={onAiExplain} />
       )}
       {homeInsight?.type === 'trend' && (
-        <TrendInsightModal healthData={hd} trendDays={trendDays} onClose={() => setHomeInsight(null)} />
+        <TrendInsightModal healthData={hd} trendDays={trendDays} onClose={() => setHomeInsight(null)} onAiExplain={onAiExplain} />
       )}
       {hasHealthData && <DailySignalsStrip healthData={hd} onMetricTap={metric => setHomeInsight({ type: 'metric', metric })} />}
       {hasHealthData && (hd.hrv?.length > 1 || hd.restingHr?.length > 1) && (

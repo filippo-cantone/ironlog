@@ -164,7 +164,7 @@ function ExerciseEffortLineChart({ ex, deps }) {
   );
 }
 
-function WorkoutEffortReview({ session, watchData, allExercises = {}, deps }) {
+function WorkoutEffortReview({ session, watchData, allExercises = {}, deps, onAiExplain }) {
   const [openExercise, setOpenExercise] = useState(null);
   const [selectedTimelineExercise, setSelectedTimelineExercise] = useState(null);
   const review = deps.sessionEffortReview(session, watchData, allExercises);
@@ -223,6 +223,18 @@ function WorkoutEffortReview({ session, watchData, allExercises = {}, deps }) {
       </div>
       <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginTop: 5 }}>
         Set values use minute-level Apple Watch samples, so short sets are estimates and carry a confidence label.
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <button onClick={() => onAiExplain?.({
+          mode: 'workout_explanation', focus: 'workout effort',
+          rulesResult: {
+            title: 'Workout effort', summary: insight,
+            recommendation: 'Use this effort signal with RPE, pain, recovery, and progression rules before changing load.',
+            evidence: summary.map(([label, value]) => ({ signal: label, value, meaning: 'Matched Apple Watch session summary.' })),
+          },
+        })} style={{ border: `1px solid ${C.blue}55`, background: 'transparent', color: C.blue, borderRadius: 7, padding: '7px 10px', fontFamily: C.fMono, fontSize: 10, cursor: 'pointer' }}>
+          ✦ Explain with AI
+        </button>
       </div>
 
       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -299,7 +311,7 @@ function WorkoutEffortReview({ session, watchData, allExercises = {}, deps }) {
   );
 }
 
-export default function History({ sessions, setSessions, allExercises = {}, watchData, helpers = {} }) {
+export default function History({ sessions, setSessions, allExercises = {}, watchData, onAiExplain, helpers = {} }) {
   const deps = helpers;
   const { WORKOUTS, getIronWorkout, fmtDate } = deps;
   const [expanded, setExpanded] = useState(null);
@@ -427,7 +439,7 @@ export default function History({ sessions, setSessions, allExercises = {}, watc
             {expanded === sess.id && (
               <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
                 {editingId !== sess.id && sess.completed && (
-                  <WorkoutEffortReview session={sess} watchData={watchData} allExercises={allExercises} deps={deps} />
+                  <WorkoutEffortReview session={sess} watchData={watchData} allExercises={allExercises} deps={deps} onAiExplain={onAiExplain} />
                 )}
                 {(editingId === sess.id ? draft.exercises : sess.exercises)?.map((ex, exIdx) => {
                   const def = allExercises[ex.id];

@@ -100,7 +100,8 @@ ironlog/
 │   ├── data/mobility.js     ← warm-up, stretch, and mobility safety catalogues
 │   ├── domain/              ← pure session, health, progression logic (including sleep/recovery scoring)
 │   ├── storage/             ← validated persistence and backup/import helpers
-│   └── integrations/        ← Supabase response and sync helpers
+│   ├── integrations/        ← Supabase sync and AI coach transport helpers
+│   └── ../supabase/functions/ironlog-ai-explain/ ← provider fallback Edge Function
 ├── dist/
 │   └── index.html           ← compiled output, deployed to GitHub Pages
 ├── build.js                 ← build script (JSX → HTML)
@@ -118,6 +119,25 @@ ironlog/
 ## Source File Architecture (`src/IronLog.jsx`)
 
 The remaining shared UI and app-root wiring are still organised inside `src/IronLog.jsx`, while extracted screens live in `src/screens/` and receive validated state and explicit dependencies through props. New logic should be placed in the relevant module directory above. The migration is intentionally incremental so the live app remains stable.
+
+### AI explanation layer
+
+IronLog can optionally explain existing deterministic results with a multi-provider AI layer. The rules engine remains authoritative for recovery, pain, safety, and progression decisions.
+
+- `src/domain/aiContext.js` builds bounded summaries of health history, completed training, Watch effort aggregates, and rules results. Raw Health Auto Export files, ECG data, notes, set timestamps, and raw Watch samples are excluded.
+- `src/integrations/aiCoach.js` handles consent, the `il_ai_insights` cache, response validation, and deterministic fallback.
+- `supabase/functions/ironlog-ai-explain/index.ts` tries Groq first, then Cloudflare Workers AI models, and returns structured JSON only.
+- AI explanations are available from readiness, sleep, HRV, resting HR, Watch effort, workout effort, exercise progression, and the Health weekly review.
+- The first request shows a disclosure. AI can be disabled in **Manage → Backup**. The app remains fully useful without provider credentials.
+
+To enable provider-backed explanations, configure the Edge Function secrets and deploy it with the Supabase CLI:
+
+```bash
+supabase secrets set GROQ_API_KEY=... CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=...
+supabase functions deploy ironlog-ai-explain
+```
+
+Never put these secrets in `src/`, `localStorage`, GitHub, or the generated HTML.
 
 ### 1. THEME (`C` object)
 All colours and font names in a single object. Change colours here to restyle the whole app.
@@ -199,6 +219,8 @@ exercise_id: {
 | `il_active` | Current in-progress session (or null) |
 | `il_custom_exercises` | User-created exercise objects |
 | `il_workout_custom` | `{ A: [...extraIds], B: [...], C: [...] }` — user customisations to workouts |
+| `il_ai_insights` | Short-lived validated AI explanation cache; contains summaries, not raw health exports |
+| `il_ai_enabled` / `il_ai_consent` | Local AI preference and first-use disclosure state |
 
 ---
 
@@ -246,7 +268,7 @@ npm run build
 3. Strips the `FontLoader` component (fonts are in the HTML `<head>`)
 4. Bundles JSX and JavaScript modules with esbuild
 5. Wraps the output in a full HTML page with CDN script tags, Google Fonts, PWA meta tags, and the embedded base64 app icon
-6. Writes `dist/index.html`
+6. Writes both `dist/index.html` and the root `index.html` used by GitHub Pages
 
 ### Watch mode (auto-rebuild on save)
 ```bash
@@ -258,12 +280,12 @@ npm run watch
 ## Deployment
 
 ```bash
-git add dist/index.html
+git add src dist/index.html index.html version.json
 git commit -m "Update app"
 git push
 ```
 
-GitHub Pages auto-deploys from `dist/index.html` on the `main` branch within ~30 seconds of a push.
+GitHub Pages auto-deploys from the root `index.html` on the `main` branch within ~30 seconds of a push.
 
 **Note:** The `dist/` folder is committed to the repo. This is intentional — GitHub Pages needs the compiled file directly in the repository.
 
@@ -295,9 +317,9 @@ Tapping the link opens YouTube in the browser. This works but is not ideal — r
 
 ## Data Storage & Cross-Device Sync
 
-App data is saved locally first in `localStorage`, then sessions and rides are pushed to Supabase for automatic backup and cross-device restore. The dashboard shows cloud sync status only; manual JSON export/import lives under **Manage → Backup** as a fallback.
+App data is saved locally first in `localStorage`, then sessions and rides are pushed to Supabase for automatic backup and cross-device restore. The dashboard shows cloud sync status only; manual JSON export/import lives under **Manage → Backup** as a fallback. AI explanations are cached locally under `il_ai_insights` and are not part of the health/workout cloud tables.
 
-**Status:** Implemented 2026-05-13. Supabase sync is active for sessions and rides; restore currently uses the count-based rule documented in **DECISIONS.md → Decision 2**.
+**Status:** Implemented 2026-05-13. Supabase sync is active for sessions and rides; restore uses identity/timestamp comparison documented in **DECISIONS.md → Decision 2**.
 
 ---
 
@@ -308,9 +330,9 @@ App data is saved locally first in `localStorage`, then sessions and rides are p
 - **Do not introduce `import` statements** for React, ReactDOM, or any other CDN-loaded library.
 - **Build-time dependencies are acceptable** when they only affect the generated artifact. Runtime dependencies remain deliberately limited to the existing CDN scripts.
 - **Respect the medical constraints** in every exercise suggestion or modification — see the User Profile section above.
-- **Keep the single-file architecture.** The entire app is one JSX file by design. Do not split into multiple files or introduce a build system beyond what exists.
+- **Keep the generated single-file deployment, not a single source file.** Source modules under `src/` are encouraged when they create a stable boundary; `build.js` bundles them into the generated HTML.
 - **Inline styles only** — no CSS files, no CSS-in-JS libraries, no Tailwind.
 - **Test the build** by running `npm run build` and checking the output size reported. If it errors, the JSX has a syntax problem.
 - **See ROADMAP.md** for planned features, known issues, and update priorities before starting any new work.
 - **See DECISIONS.md** for open architectural questions that need input before implementation begins.
-- **After every program change**, update `ROADMAP.md → Agent Notes & Feedback Log`. Also update `README.md` when current behaviour changes, and `DECISIONS.md` when an architectural decision is resolved or materially changed.
+- **After every program change**, update `ROADMAP.md` and `CHANGELOG.md`. Also update `README.md` when current behaviour changes, and `DECISIONS.md` when an architectural decision is resolved or materially changed.

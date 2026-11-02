@@ -4,7 +4,7 @@ import defaultTheme from '../ui/theme.js';
 const MUSCLE_FILTERS = ['All','Push','Pull','Hinge','Legs','Quads','Hamstrings','Glutes','Shoulders','Arms','Core'];
 const EMPTY_FORM = { name: '', muscle: 'Arms', unit: 'kg', defaultSets: 3, defaultReps: 10, repMax: 10, cue: '' };
 
-export default function Manage({ customExercises, setCustomExercises, workoutCustom, setWorkoutCustom, workoutHidden, setWorkoutHidden, allExercises, driveSync, onDriveSave, onDriveLoad, onCloudSync, onDemoOpen, data = {}, components = {}, theme: themeProps = defaultTheme }) {
+export default function Manage({ customExercises, setCustomExercises, workoutCustom, setWorkoutCustom, workoutHidden, setWorkoutHidden, allExercises, driveSync, onDriveSave, onDriveLoad, onCloudSync, onDemoOpen, aiEnabled, setAiEnabled, aiConsent, onAiSettings, data = {}, components = {}, theme: themeProps = defaultTheme }) {
   const { C, st } = themeProps;
   const {
     EXERCISES = {}, PRESET_LIBRARY = {}, IRON_EXERCISES = {}, WORKOUTS = {}, STRETCH_LIBRARY = [],
@@ -543,6 +543,19 @@ export default function Manage({ customExercises, setCustomExercises, workoutCus
       {/* ── Backup tab ── */}
       {tab === 'backup' && (
         <div>
+          <div style={{ ...st.card(C.blue + '08'), borderColor: C.blue + '33', marginBottom: 16 }}>
+            <div style={{ ...st.label, color: C.blue, marginBottom: 8 }}>AI explanations</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div style={{ flex: 1, fontSize: 13, color: C.text }}>Explain readiness, sleep, health trends, and workout effort</div>
+              <button onClick={() => { const next = !aiEnabled; setAiEnabled?.(next); onAiSettings?.({ enabled: next }); }} style={{
+                border: `1px solid ${aiEnabled ? C.green : C.border}`, background: aiEnabled ? C.green + '14' : C.dim,
+                color: aiEnabled ? C.green : C.muted, borderRadius: 999, padding: '6px 10px', fontFamily: C.fMono, fontSize: 10, cursor: 'pointer',
+              }}>{aiEnabled ? 'On' : 'Off'}</button>
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.45 }}>
+              {aiConsent ? 'Consent granted. Only summarised health and workout data is sent; raw exports and ECG data stay out of the AI request.' : 'AI is optional. You will be asked before the first explanation is requested.'}
+            </div>
+          </div>
           <div style={{ ...st.card(), marginBottom: 16 }}>
             <div style={{ ...st.label, marginBottom: 10 }}>Cloud Sync</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>

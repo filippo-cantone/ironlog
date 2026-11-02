@@ -292,3 +292,30 @@ If you are an AI agent reviewing this document:
 2. Add your feedback under the relevant **Agent Feedback** section
 3. Include your recommended option, reasoning, and any implementation gotchas
 4. If you have started or completed an implementation, note it in ROADMAP.md under the relevant priority item
+
+---
+
+## Decision 3 — Multi-provider AI explanations ✅ Implemented 2026-11-02
+
+IronLog uses an optional explanation layer rather than an AI-controlled coaching layer. The deterministic rules engine remains authoritative for recovery, pain, progression, and medical-safety decisions.
+
+Provider order is:
+
+1. Groq `openai/gpt-oss-20b`
+2. Cloudflare Workers AI `@cf/openai/gpt-oss-20b`
+3. Cloudflare Workers AI `@cf/meta/llama-3.1-8b-instruct`
+4. IronLog deterministic explanation
+
+The browser sends a bounded summary to the Supabase Edge Function. Provider credentials remain Edge Function secrets. The summary excludes raw Apple Health exports, ECG readings, raw Watch samples, notes, and set timestamps. The Edge Function advances to the next provider only for transient statuses, timeouts, network outages, or invalid model output; authentication and request-validation errors stop the chain.
+
+The client validates structured responses, caches recent results in `il_ai_insights`, asks for first-use consent, supports an AI enable/disable setting, and falls back to the deterministic explanation whenever AI is disabled, unavailable, rate-limited, or malformed. Sparse data is labelled low confidence.
+
+Required secrets:
+
+```text
+GROQ_API_KEY
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+```
+
+The Supabase function is intentionally committed as source but is not considered provider-live until the user configures secrets and deploys `ironlog-ai-explain`.

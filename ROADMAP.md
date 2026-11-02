@@ -6,7 +6,7 @@ Read README.md first for full project context, user profile, medical constraints
 
 ### Architecture refactor — in progress — Codex
 - Modularise IronLog gradually, beginning with safety/data-integrity foundations while preserving the current GitHub Pages deployment.
-- ⏳ AI multi-provider explanation layer — in progress — Codex
+- ✅ AI multi-provider explanation layer — implementation complete 2026-11-02 — Codex; provider secrets/deployment pending
 - ✅ Phase 1 foundation: module entry point, esbuild bundle, validated backup/storage helpers, session migration metadata, progression modules/tests, health mapping, and cloud cardio restore fix
 - ✅ Phase 2 first step: extracted shared theme/style tokens into `src/ui/theme.js` without changing screen behaviour
 - ✅ Phase 2 chart step: extracted smooth-line geometry and metric colour classification into `src/ui/charts/metrics.js` with automated coverage
@@ -27,6 +27,16 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 6 baseline: Node test coverage now protects progression, session migration/timestamps, health and sleep mapping, storage/import validation, cloud conflict comparison, chart primitives, and workout catalogue selection
 - ✅ Browser smoke baseline: verified startup, Home, Health, Workout entry and active set timing, Log, Stats, Rides, and Manage against the generated build
 - 🔄 Next: continue low-risk extraction of remaining shared components and add a repeatable automated browser smoke runner
+
+### Multi-provider AI explanation layer — implementation status
+- ✅ Bounded full-history context summaries in `src/domain/aiContext.js`; raw Apple Health, ECG, notes, set timestamps, and raw Watch samples excluded
+- ✅ Browser client in `src/integrations/aiCoach.js` with consent, enable/disable setting, schema validation, cache (`il_ai_insights`), and deterministic fallback
+- ✅ Supabase Edge Function source in `supabase/functions/ironlog-ai-explain/index.ts`
+- ✅ Sequential provider order: Groq GPT-OSS 20B, Cloudflare GPT-OSS 20B, Cloudflare Llama 3.1 8B, deterministic fallback
+- ✅ AI entry points added to readiness, health metrics, sleep, Watch effort, workout effort, exercise progression, and Health weekly review
+- ✅ First-use disclosure and Manage → Backup AI setting added
+- ✅ Node tests cover context privacy/size, cache expiry, response schema, fallback policy, and deterministic fallback
+- ⏳ Configure `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` as Supabase secrets, then deploy the Edge Function
 
 ---
 
