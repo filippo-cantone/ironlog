@@ -2,12 +2,14 @@
 
 function createBackup(data = {}, now = new Date()) {
   return {
-    version: 2,
+    version: 3,
     exportedAt: now.toISOString(),
     sessions: Array.isArray(data.sessions) ? data.sessions : [],
     rides: Array.isArray(data.rides) ? data.rides : [],
     customExercises: data.customExercises || {},
     workoutCustom: data.workoutCustom || {},
+    activityGoals: data.activityGoals || undefined,
+    healthData: data.healthData || undefined,
   };
 }
 

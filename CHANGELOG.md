@@ -10,6 +10,15 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Fixed weekly AI review diagnostics: mode-specific bounded context, actual HTTP status/response detail in fallback messages, useful deterministic weekly evidence, and request-scoped server telemetry without health payload logging
 - Added regression tests for SDNN readiness, sparse baseline handling, score removal, and detailed AI service failures
 
+## 2026-11-02 — Activity goals and health detail upgrade (Codex)
+
+- Added Apple Health / Apple Watch activity points, with measured Watch intensity preferred and clearly labelled HR-based estimates when possible
+- Added editable weekly Heart Points, strength, cycling, steps, active-calorie, and personal max-HR goals under Manage → Goals, persisted as `il_activity_goals` and included in JSON backup/import
+- Added compact Home Activity Balance, detailed Health activity goals and deterministic coaching, and per-session Log activity summaries
+- Added a seven-night descriptive sleep timeline plus weight trend and manual weight entry; sleep stages remain descriptive and do not alter HRV readiness
+- Extended the bounded AI context with weekly activity, goals, sleep timeline, weight trend, and coaching evidence without sending raw Apple Health or Watch samples
+- Added domain tests for intensity classification, sparse Watch data, weekly aggregation, sleep timelines, weight trends, and safety-aware goal coaching
+
 ---
 
 ## 2026-11-02 — Multi-provider AI explanation layer (Codex)

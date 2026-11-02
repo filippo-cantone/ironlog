@@ -330,6 +330,10 @@ Resting HR, sleep duration/efficiency, wearable sleep stages, training load, RPE
 
 The weekly AI review uses a smaller mode-specific context budget, preserves the actual Edge Function HTTP status and response detail in the UI, and keeps a useful deterministic evidence summary when the provider chain is unavailable. The Edge Function logs only request ID, mode, provider, model, status, duration, and failure reason.
 
+## Decision 5 — Apple Health activity goals as a separate layer ✅ Implemented 2026-11-02
+
+IronLog uses Apple Health and Apple Watch as the source of activity evidence, with Google Fit serving only as design inspiration. The activity layer calculates Heart Points-style movement volume (1 point per moderate minute and 2 per vigorous minute), shows whether intensity was measured by Watch metadata or estimated from heart-rate samples, and keeps strength quality in the existing set/RPE/pain/progression model. Activity goals never override HRV-led readiness, pain gates, or medical constraints. The app stores editable targets locally as `il_activity_goals`, includes them in JSON backups, and exposes them in Home, Health, Log, Manage, and bounded AI context. Weight is a descriptive trend with manual fallback; sleep stages are descriptive wearable estimates rather than a second readiness score.
+
 ---
 
 ## Decision 4 — Science-first readiness and weekly AI error handling ✅ Implemented 2026-11-02

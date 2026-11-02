@@ -22,12 +22,17 @@ import mobilityData from './data/mobility.js';
 import importExportDomain from './storage/importExport.js';
 import buildAiContext from './domain/aiContext.js';
 import aiCoachDomain from './integrations/aiCoach.js';
+import activityDomain from './domain/activity.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
 const { emptyHealthData, mergeHealthData, computeSleepProfile: computeSleepProfileDomain, computeReadiness: computeReadinessDomain } = healthDomain;
 const { safeParse, validateBackup } = storageDomain;
 const { shouldRestoreCloud } = syncDomain;
+const {
+  DEFAULT_ACTIVITY_GOALS, normaliseGoals, sessionActivitySummary,
+  summarizeWeeklyActivity, buildSleepTimeline, calculateWeightTrend, buildGoalCoaching,
+} = activityDomain;
 const { C, st, dash } = theme;
 const { smoothLinePath, chartColorKey, metricChartColorKey, metricStatusColor, gradientStopsForPoints: chartGradientStops } = chartDomain;
 const { WORKOUTS, IRON_WORKOUTS } = workoutData;
@@ -379,13 +384,13 @@ async function pullHealthMetrics() {
       .order('date', { ascending: true });
     if (error || !data || !data.length) return null;
     const result = {
-      hrv: [], restingHr: [], steps: [], activeCal: [], cardio: [], sleep: [], bloodOxygen: [],
+      hrv: [], restingHr: [], steps: [], activeCal: [], cardio: [], sleep: [], bloodOxygen: [], weight: [],
       sleepDeep: [], sleepRem: [], sleepCore: [], sleepAwake: [], sleepInBed: [], sleepEfficiency: [],
     };
     const keyMap = {
       hrv: 'hrv', resting_hr: 'restingHr', steps: 'steps', active_cal: 'activeCal', cardio: 'cardio', sleep: 'sleep', blood_oxygen: 'bloodOxygen',
       sleep_deep: 'sleepDeep', sleep_rem: 'sleepRem', sleep_core: 'sleepCore', sleep_awake: 'sleepAwake',
-      sleep_in_bed: 'sleepInBed', sleep_efficiency: 'sleepEfficiency',
+      sleep_in_bed: 'sleepInBed', sleep_efficiency: 'sleepEfficiency', weight: 'weight', body_mass: 'weight',
     };
     data.forEach(row => {
       const key = keyMap[row.metric];
@@ -434,7 +439,7 @@ async function pushHealthMetrics(healthData) {
   if (!db) return;
   try {
     const keyMap = {
-      hrv: 'hrv', restingHr: 'resting_hr', steps: 'steps', activeCal: 'active_cal', cardio: 'cardio', sleep: 'sleep', bloodOxygen: 'blood_oxygen',
+      hrv: 'hrv', restingHr: 'resting_hr', steps: 'steps', activeCal: 'active_cal', cardio: 'cardio', sleep: 'sleep', bloodOxygen: 'blood_oxygen', weight: 'weight',
       sleepDeep: 'sleep_deep', sleepRem: 'sleep_rem', sleepCore: 'sleep_core', sleepAwake: 'sleep_awake',
       sleepInBed: 'sleep_in_bed', sleepEfficiency: 'sleep_efficiency',
     };
@@ -842,6 +847,7 @@ const HEALTH_METRICS = [
   { id: 'active_cal', key: 'activeCal', storage: 'il_health_active_cal', title: 'Active Calories', subtitle: 'Daily Total', unit: 'kcal', type: 'bar', days: 14, color: C.amber },
   { id: 'blood_oxygen', key: 'bloodOxygen', storage: 'il_health_blood_oxygen', title: 'Blood Oxygen', subtitle: 'SpO2', unit: '%', type: 'line', days: 30, color: C.purple, sparse: true },
   { id: 'cardio', key: 'cardio', storage: 'il_health_cardio', title: 'Cardio Fitness', subtitle: 'VO2 Max Estimate', unit: 'mL/kg/min', type: 'line', days: 180, color: C.purple, sparse: true },
+  { id: 'weight', key: 'weight', storage: 'il_health_weight', title: 'Weight', subtitle: 'Body Mass', unit: 'kg', type: 'line', days: 180, color: C.blue, sparse: true, lowBetter: true },
 ];
 
 function normaliseHealthReading(item, i) {
@@ -897,6 +903,9 @@ const HEALTH_EXPORT_MAP = {
   cardio_fitness:         'cardio',
   cardio_fitness_vo2_max: 'cardio',
   oxygen_consumption:     'cardio',
+  body_mass:              'weight',
+  weight:                 'weight',
+  body_weight:            'weight',
   sleep_analysis:         'sleep',
   sleep:                  'sleep',
   sleep_deep:             'sleepDeep',
@@ -5014,10 +5023,14 @@ export default function App() {
   const [preStartSwaps, setPreStartSwaps] = useState({});
   const [ironView, setIronView] = useState(false);
   const [healthData, setHealthData] = useState({
-    hrv: [], restingHr: [], steps: [], activeCal: [], cardio: [], sleep: [], bloodOxygen: [],
+    hrv: [], restingHr: [], steps: [], activeCal: [], cardio: [], sleep: [], bloodOxygen: [], weight: [],
     sleepDeep: [], sleepRem: [], sleepCore: [], sleepAwake: [], sleepInBed: [], sleepEfficiency: [],
   });
   const [watchData, setWatchData] = useState({ matches: [], workouts: [], samples: [], ecg: [] });
+  const [activityGoals, setActivityGoals] = useState(() => {
+    try { return normaliseGoals(safeParse(localStorage.getItem('il_activity_goals'), DEFAULT_ACTIVITY_GOALS)); }
+    catch { return normaliseGoals(DEFAULT_ACTIVITY_GOALS); }
+  });
 
   // Keep a ref to current data so export always uses the latest state
   const dataRef = useRef({});
@@ -5025,23 +5038,27 @@ export default function App() {
   const allExercises = { ...EXERCISES, ...PRESET_LIBRARY, ...IRON_EXERCISES, ...customExercises };
   const coachRec = computeCoachRecommendation(sessions, rides, selectedWorkout);
   const recovery = computeRecovery(healthData);
+  const activitySummary = summarizeWeeklyActivity({ sessions, rides, watchData, healthData, goals: activityGoals });
+  const sleepTimeline = buildSleepTimeline(healthData);
+  const weightTrend = calculateWeightTrend(healthData.weight);
+  const goalCoaching = buildGoalCoaching({ activitySummary, readiness: recovery, sessions, goals: activityGoals });
 
   useEffect(() => {
-    dataRef.current = { sessions, rides, customExercises, workoutCustom };
-  }, [sessions, rides, customExercises, workoutCustom]);
+    dataRef.current = { sessions, rides, customExercises, workoutCustom, activityGoals, healthData };
+  }, [sessions, rides, customExercises, workoutCustom, activityGoals, healthData]);
 
   useEffect(() => {
     (async () => {
       const [
         s, r, a, ce, wc, wh, hrv, restingHr, steps, activeCal, cardio, sleep, bloodOxygen,
-        sleepDeep, sleepRem, sleepCore, sleepAwake, sleepInBed, sleepEfficiency,
+        sleepDeep, sleepRem, sleepCore, sleepAwake, sleepInBed, sleepEfficiency, weight, savedGoals,
       ] = await Promise.all([
         load('il_sessions'), load('il_rides'), load('il_active'),
         load('il_custom_exercises'), load('il_workout_custom'), load('il_workout_hidden'),
         load('il_health_hrv'), load('il_health_resting_hr'), load('il_health_steps'),
         load('il_health_active_cal'), load('il_health_cardio'), load('il_health_sleep'), load('il_health_blood_oxygen'),
         load('il_health_sleep_deep'), load('il_health_sleep_rem'), load('il_health_sleep_core'),
-        load('il_health_sleep_awake'), load('il_health_sleep_in_bed'), load('il_health_sleep_efficiency'),
+        load('il_health_sleep_awake'), load('il_health_sleep_in_bed'), load('il_health_sleep_efficiency'), load('il_health_weight'), load('il_activity_goals'),
       ]);
       const localSessions = migrateSessions(s);
       const localRides    = r || [];
@@ -5065,11 +5082,12 @@ export default function App() {
 
       const localHealth = {
         hrv: hrv || [], restingHr: restingHr || [], steps: steps || [], activeCal: activeCal || [],
-        cardio: cardio || [], sleep: sleep || [], bloodOxygen: bloodOxygen || [],
+        cardio: cardio || [], sleep: sleep || [], bloodOxygen: bloodOxygen || [], weight: weight || [],
         sleepDeep: sleepDeep || [], sleepRem: sleepRem || [], sleepCore: sleepCore || [],
         sleepAwake: sleepAwake || [], sleepInBed: sleepInBed || [], sleepEfficiency: sleepEfficiency || [],
       };
       setHealthData(mergeHealthData(cloudHealth, localHealth));
+      setActivityGoals(normaliseGoals(savedGoals));
       setWatchData(cloudWatch || { matches: [], workouts: [], samples: [], ecg: [] });
       setSelectedWorkout(nextWorkout(finalSessions));
       setReady(true);
@@ -5094,6 +5112,7 @@ export default function App() {
   useEffect(() => { if (ready) save('il_health_steps', healthData.steps); }, [healthData.steps, ready]);
   useEffect(() => { if (ready) save('il_health_active_cal', healthData.activeCal); }, [healthData.activeCal, ready]);
   useEffect(() => { if (ready) save('il_health_cardio', healthData.cardio); }, [healthData.cardio, ready]);
+  useEffect(() => { if (ready) save('il_health_weight', healthData.weight); }, [healthData.weight, ready]);
   useEffect(() => { if (ready) save('il_health_sleep', healthData.sleep); }, [healthData.sleep, ready]);
   useEffect(() => { if (ready) save('il_health_blood_oxygen', healthData.bloodOxygen); }, [healthData.bloodOxygen, ready]);
   useEffect(() => { if (ready) save('il_health_sleep_deep', healthData.sleepDeep); }, [healthData.sleepDeep, ready]);
@@ -5102,6 +5121,7 @@ export default function App() {
   useEffect(() => { if (ready) save('il_health_sleep_awake', healthData.sleepAwake); }, [healthData.sleepAwake, ready]);
   useEffect(() => { if (ready) save('il_health_sleep_in_bed', healthData.sleepInBed); }, [healthData.sleepInBed, ready]);
   useEffect(() => { if (ready) save('il_health_sleep_efficiency', healthData.sleepEfficiency); }, [healthData.sleepEfficiency, ready]);
+  useEffect(() => { if (ready) save('il_activity_goals', activityGoals); }, [activityGoals, ready]);
   useEffect(() => { if (ready) writeAiSetting({ enabled: aiEnabled }); }, [aiEnabled, ready]);
   useEffect(() => { if (ready) writeAiSetting({ consent: aiConsent }); }, [aiConsent, ready]);
 
@@ -5120,6 +5140,8 @@ export default function App() {
       if (data.rides)           setRides(data.rides);
       if (data.customExercises) setCustomExercises(data.customExercises);
       if (data.workoutCustom)   setWorkoutCustom(data.workoutCustom);
+      if (data.activityGoals)   setActivityGoals(normaliseGoals(data.activityGoals));
+      if (data.healthData)      setHealthData(prev => mergeHealthData(data.healthData, prev));
       if (data.sessions)        setSelectedWorkout(nextWorkout(data.sessions));
       setDriveSync({ status: 'done', lastSync: new Date().toISOString(), error: null });
     } catch (e) {
@@ -5153,6 +5175,11 @@ export default function App() {
       allExercises,
       focus: request.focus,
       maxChars: request.mode === 'weekly_review' ? 18000 : 50000,
+      activitySummary,
+      activityGoals,
+      sleepTimeline,
+      weightTrend,
+      goalCoaching,
     });
     const payload = {
       mode: request.mode || 'metric_explanation',
@@ -5253,7 +5280,7 @@ export default function App() {
             updateAvailable={updateAvailable} onWarmupOpen={setWarmupDemoItem}
             onDemoOpen={setDemoExId}
             coachRec={coachRec} showWhy={showWhy} setShowWhy={setShowWhy}
-            healthData={healthData} watchData={watchData} onAiExplain={handleAiExplain}
+            healthData={healthData} watchData={watchData} activitySummary={activitySummary} onAiExplain={handleAiExplain}
             helpers={{ computeRecovery, computeFatigue, computeTrainingLoad, computeTrendInsight, summarizeWatchEffort, timeGreeting, weekStart, weekMondayStart, workoutDisplay, fmtDate }}
             components={{ Icon, ReadinessSummaryCard, ReadinessInsightModal, HomeMetricInsightModal, WatchEffortInsightModal, SleepInsightModal, TrendInsightModal, DailySignalsStrip, RecoveryTrendCard, ThisWeekSummaryCard, WeeklyHeatmap, RecentWorkoutsSection }}
             theme={theme} />
@@ -5327,6 +5354,7 @@ export default function App() {
             setSessions={setSessions}
             allExercises={allExercises}
             watchData={watchData}
+            activitySummary={activitySummary}
             onAiExplain={handleAiExplain}
             helpers={{
               WORKOUTS,
@@ -5345,6 +5373,12 @@ export default function App() {
             allExercises={allExercises}
             healthData={healthData}
             setHealthData={setHealthData}
+            activitySummary={activitySummary}
+            activityGoals={activityGoals}
+            setActivityGoals={setActivityGoals}
+            sleepTimeline={sleepTimeline}
+            weightTrend={weightTrend}
+            goalCoaching={goalCoaching}
             Icon={Icon}
             onHealthPush={pushHealthMetrics}
             onAiExplain={handleAiExplain}
@@ -5391,6 +5425,10 @@ export default function App() {
             aiEnabled={aiEnabled}
             setAiEnabled={setAiEnabled}
             aiConsent={aiConsent}
+            activityGoals={activityGoals}
+            setActivityGoals={setActivityGoals}
+            healthData={healthData}
+            setHealthData={setHealthData}
             onDemoOpen={setDemoExId}
             data={{ EXERCISES, PRESET_LIBRARY, IRON_EXERCISES, WORKOUTS, STRETCH_LIBRARY }}
             components={{ ExerciseIcon, MuscleDiagram, YouTubeModal, StretchDemoModal }}

@@ -1,6 +1,6 @@
 /** Validated localStorage access. Browser APIs are injected for testability. */
 
-const BACKUP_SCHEMA_VERSION = 2;
+const BACKUP_SCHEMA_VERSION = 3;
 
 function safeParse(raw, fallback = null) {
   if (typeof raw !== 'string' || !raw.trim()) return fallback;
@@ -34,6 +34,12 @@ function validateBackup(data) {
   if (data.rides !== undefined && !Array.isArray(data.rides)) throw new Error('Invalid backup: rides must be an array.');
   if (data.customExercises !== undefined && (!data.customExercises || typeof data.customExercises !== 'object' || Array.isArray(data.customExercises))) {
     throw new Error('Invalid backup: customExercises must be an object.');
+  }
+  if (data.activityGoals !== undefined && (!data.activityGoals || typeof data.activityGoals !== 'object' || Array.isArray(data.activityGoals))) {
+    throw new Error('Invalid backup: activityGoals must be an object.');
+  }
+  if (data.healthData !== undefined && (!data.healthData || typeof data.healthData !== 'object' || Array.isArray(data.healthData))) {
+    throw new Error('Invalid backup: healthData must be an object.');
   }
   for (const key of ['workoutCustom', 'workoutHidden']) {
     if (data[key] !== undefined && (!data[key] || typeof data[key] !== 'object' || Array.isArray(data[key]))) {

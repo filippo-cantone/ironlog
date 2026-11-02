@@ -1,7 +1,7 @@
 import React, { useState } from '../runtime.js';
 import defaultTheme from '../ui/theme.js';
 
-export default function Dashboard({ sessions, rides, setView, activeSession, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, driveSync, onCloudSync, updateAvailable, onWarmupOpen, onDemoOpen, coachRec, showWhy, setShowWhy, healthData, watchData, onAiExplain, helpers = {}, components = {}, theme: themeProps = defaultTheme }) {
+export default function Dashboard({ sessions, rides, setView, activeSession, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, driveSync, onCloudSync, updateAvailable, onWarmupOpen, onDemoOpen, coachRec, showWhy, setShowWhy, healthData, watchData, activitySummary, onAiExplain, helpers = {}, components = {}, theme: themeProps = defaultTheme }) {
   const { C, st, dash } = themeProps;
   const {
     computeRecovery, computeFatigue, computeTrainingLoad, computeTrendInsight,
@@ -153,6 +153,7 @@ export default function Dashboard({ sessions, rides, setView, activeSession, sel
           </div>
         ))}
       </div>
+      {activitySummary && <ActivityBalanceCard summary={activitySummary} onOpen={() => setView('health')} theme={themeProps} />}
       <ThisWeekSummaryCard sessions={sessions} rides={rides} watchSummary={watchSummary} />
 
       {/* ── Weekly Activity + Recent Workouts side by side ── */}
@@ -209,6 +210,35 @@ export default function Dashboard({ sessions, rides, setView, activeSession, sel
         </>
       )}
     </div>
+  );
+}
+
+function ActivityBalanceCard({ summary, onOpen, theme: themeProps }) {
+  const { C, dash } = themeProps;
+  const goal = summary.goals || {};
+  const rows = [
+    ['Heart points', summary.points, goal.weeklyHeartPoints, C.blue],
+    ['Strength sessions', summary.strengthSessions, goal.weeklyStrengthSessions, C.green],
+    ['Cycling minutes', summary.cyclingMinutes, goal.weeklyCyclingMinutes, C.amber],
+  ].filter(row => row[2] != null);
+  return (
+    <button onClick={onOpen} style={{ ...dash.card({ marginBottom: 10 }), width: '100%', textAlign: 'left', cursor: 'pointer' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <div style={{ ...dash.label, color: '#0d1838' }}>Activity balance</div>
+        <div style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted }}>Not readiness</div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(rows.length, 3)}, 1fr)`, gap: 8, marginTop: 10 }}>
+        {rows.map(([label, value, target, color]) => {
+          const percent = Math.min(100, Math.round((value / target) * 100));
+          return <div key={label} style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+            <div style={{ marginTop: 3, fontFamily: C.fDisplay, fontSize: 20, fontWeight: 800, color: '#0d1838' }}>{value}<span style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted }}> / {target}</span></div>
+            <div style={{ height: 5, borderRadius: 5, background: C.dim, marginTop: 4 }}><div style={{ width: `${percent}%`, height: '100%', borderRadius: 5, background: color }} /></div>
+          </div>;
+        })}
+      </div>
+      <div style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted, marginTop: 8 }}>Tap for goals, sleep timeline, and body trends</div>
+    </button>
   );
 }
 

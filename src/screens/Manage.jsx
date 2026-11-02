@@ -4,7 +4,7 @@ import defaultTheme from '../ui/theme.js';
 const MUSCLE_FILTERS = ['All','Push','Pull','Hinge','Legs','Quads','Hamstrings','Glutes','Shoulders','Arms','Core'];
 const EMPTY_FORM = { name: '', muscle: 'Arms', unit: 'kg', defaultSets: 3, defaultReps: 10, repMax: 10, cue: '' };
 
-export default function Manage({ customExercises, setCustomExercises, workoutCustom, setWorkoutCustom, workoutHidden, setWorkoutHidden, allExercises, driveSync, onDriveSave, onDriveLoad, onCloudSync, onDemoOpen, aiEnabled, setAiEnabled, aiConsent, onAiSettings, data = {}, components = {}, theme: themeProps = defaultTheme }) {
+export default function Manage({ customExercises, setCustomExercises, workoutCustom, setWorkoutCustom, workoutHidden, setWorkoutHidden, allExercises, driveSync, onDriveSave, onDriveLoad, onCloudSync, onDemoOpen, aiEnabled, setAiEnabled, aiConsent, onAiSettings, activityGoals, setActivityGoals, data = {}, components = {}, theme: themeProps = defaultTheme }) {
   const { C, st } = themeProps;
   const {
     EXERCISES = {}, PRESET_LIBRARY = {}, IRON_EXERCISES = {}, WORKOUTS = {}, STRETCH_LIBRARY = [],
@@ -84,8 +84,8 @@ export default function Manage({ customExercises, setCustomExercises, workoutCus
       <div style={{ ...st.h2, marginBottom: 16 }}>Manage</div>
 
       {/* Sub-tabs */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 20, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
-        {[['library','Library'],['workouts','Workouts'],['backup','Backup']].map(([id, label]) => (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+        {[['library','Library'],['workouts','Workouts'],['goals','Goals'],['backup','Backup']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)} style={{
             background: tab === id ? C.amber : C.dim, color: tab === id ? '#fff' : C.muted,
             border: 'none', padding: '11px', fontFamily: C.fDisplay, fontSize: 13, fontWeight: 700,
@@ -537,6 +537,39 @@ export default function Manage({ customExercises, setCustomExercises, workoutCus
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* ── Backup tab ── */}
+      {tab === 'goals' && (
+        <div>
+          <div style={{ ...st.card(C.blue + '08'), borderColor: C.blue + '33', marginBottom: 16 }}>
+            <div style={{ ...st.label, color: C.blue, marginBottom: 8 }}>Activity targets</div>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.45 }}>
+              These targets describe activity volume. They do not override HRV readiness, pain safeguards, or medical constraints.
+            </div>
+          </div>
+          <div style={{ ...st.card(), marginBottom: 16 }}>
+            {[
+              ['weeklyHeartPoints', 'Weekly heart points', '150', 'Moderate minutes count as 1; vigorous minutes count as 2.'],
+              ['weeklyStrengthSessions', 'Strength sessions per week', '3', 'Completed IronLog strength sessions.'],
+              ['dailySteps', 'Daily steps', '8000', 'Used for the weekly step progress view.'],
+              ['weeklyCyclingMinutes', 'Cycling minutes per week', '', 'Leave blank to keep this goal disabled.'],
+              ['weeklyActiveCalories', 'Active calories per week', '', 'Optional context goal; not a weight-loss prescription.'],
+              ['maxHeartRate', 'Personal maximum heart rate', '', 'Optional. Needed when Watch intensity metadata is unavailable and IronLog estimates points from HR samples.'],
+            ].map(([key, label, placeholder, help]) => (
+              <label key={key} style={{ display: 'block', marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontFamily: C.fMono, fontSize: 11, color: C.text }}>{label}</span>
+                  <input type="number" min="0" inputMode="numeric" value={activityGoals?.[key] ?? ''} placeholder={placeholder}
+                    onChange={e => { const value = e.target.value === '' ? null : Math.max(0, Number(e.target.value)); setActivityGoals?.(prev => ({ ...prev, [key]: Number.isFinite(value) ? value : null })); }}
+                    style={{ ...st.inp, width: 100, textAlign: 'right', padding: '7px 8px' }} />
+                </div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 4, lineHeight: 1.35 }}>{help}</div>
+              </label>
+            ))}
+            <button onClick={() => setActivityGoals?.({ weeklyHeartPoints: 150, weeklyStrengthSessions: 3, weeklyCyclingMinutes: null, dailySteps: 8000, weeklyActiveCalories: null, maxHeartRate: null })} style={{ ...st.ghost, width: '100%', marginTop: 4 }}>Reset activity goals</button>
+          </div>
         </div>
       )}
 

@@ -3,6 +3,7 @@
 const HEALTH_KEYS = [
   'hrv', 'restingHr', 'steps', 'activeCal', 'cardio', 'sleep', 'bloodOxygen',
   'sleepDeep', 'sleepRem', 'sleepCore', 'sleepAwake', 'sleepInBed', 'sleepEfficiency',
+  'weight',
 ];
 
 const EMPTY_HEALTH_DATA = Object.freeze(
@@ -12,6 +13,7 @@ const EMPTY_HEALTH_DATA = Object.freeze(
 const HEALTH_METRIC_KEY_MAP = Object.freeze({
   hrv: 'hrv', resting_hr: 'restingHr', steps: 'steps', active_cal: 'activeCal',
   cardio: 'cardio', sleep: 'sleep', blood_oxygen: 'bloodOxygen',
+  weight: 'weight', body_mass: 'weight', weight_kg: 'weight',
   sleep_deep: 'sleepDeep', sleep_rem: 'sleepRem', sleep_core: 'sleepCore',
   sleep_awake: 'sleepAwake', sleep_in_bed: 'sleepInBed', sleep_efficiency: 'sleepEfficiency',
 });
@@ -25,7 +27,12 @@ function mapHealthRows(rows = []) {
   rows.forEach(row => {
     const key = HEALTH_METRIC_KEY_MAP[row?.metric];
     const value = Number(row?.value);
-    if (key && row?.date && Number.isFinite(value)) result[key].push({ date: row.date, value });
+    if (key && row?.date && Number.isFinite(value)) result[key].push({
+      date: row.date, value,
+      ...(row.source ? { source: row.source } : {}),
+      ...(row.start_at ? { startAt: row.start_at } : {}),
+      ...(row.end_at ? { endAt: row.end_at } : {}),
+    });
   });
   return result;
 }

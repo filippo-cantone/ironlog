@@ -234,6 +234,7 @@ Energy check → Warm-up checklist → Exercises (weight/reps/RPE/pain per set) 
 - ✅ Health tab Body section: charts for HRV, Resting HR, Steps, Active Cal with workout markers, badges, trend arrows
 - ✅ Readiness Dashboard on Home: greeting, HRV-led status, fatigue bar, training load, Today's Training, 4-metric strip with area sparklines, Recovery Trends dual-axis chart (7D/30D/90D), Cycling/Strength week cards, Weekly Heatmap, Recent Workouts
 - ✅ Science-first readiness: Apple Health SDNN uses a seven-day rolling trend and personal baseline band; sleep duration/efficiency/stages remain separate context and no composite 0–100 recovery score is displayed. See `computeReadiness()`, `computeSleepProfile()`, and ROADMAP.md.
+- ✅ Activity and health goals: Apple Health / Apple Watch activity points, editable `il_activity_goals`, Home Activity Balance, Health seven-night sleep timeline and weight trend, per-session Log summaries, and safety-aware deterministic coaching. Activity never overrides readiness or pain rules.
 
 ---
 

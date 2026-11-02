@@ -4,9 +4,13 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
-### Activity and Health Goals — in progress — Codex
-- Add Google Fit-inspired activity points, weekly goals, workout summaries, sleep timeline, weight/health trends, and deterministic goal coaching using Apple Health and Apple Watch data.
-- Keep activity points separate from HRV-led readiness and medical-safety decisions.
+### Activity and Health Goals — complete — Codex — 2026-11-02
+- ✅ Added Apple Health / Apple Watch activity points with measured Watch intensity first and labelled heart-rate estimates when samples and a personal max-HR setting are available.
+- ✅ Added editable weekly activity goals under Manage → Goals and `il_activity_goals` backup/local persistence.
+- ✅ Added Home Activity Balance, Health activity goals/coaching, seven-night sleep timeline, and weight trend/manual entry.
+- ✅ Added per-session Log activity summaries with points, moderate/vigorous minutes, active calories, and Watch sample quality.
+- ✅ Added bounded activity, goals, sleep timeline, weight, and coaching evidence to the AI context without raw Watch samples or health exports.
+- ✅ Added domain tests for points, sparse data, sleep timelines, weight trends, and safety-aware coaching.
 
 ### Science-first readiness + weekly AI fix — complete — Codex — 2026-11-02
 - ✅ Replaced the unvalidated composite recovery score with an Apple Health SDNN HRV-led readiness protocol.

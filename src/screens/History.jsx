@@ -1,5 +1,6 @@
 import React, { useState } from '../runtime.js';
 import theme from '../ui/theme.js';
+import { sessionActivitySummary } from '../domain/activity.js';
 
 const { C, st } = theme;
 
@@ -311,7 +312,25 @@ function WorkoutEffortReview({ session, watchData, allExercises = {}, deps, onAi
   );
 }
 
-export default function History({ sessions, setSessions, allExercises = {}, watchData, onAiExplain, helpers = {} }) {
+function SessionActivitySummary({ session, watchData, goals }) {
+  const summary = sessionActivitySummary(session, watchData, goals);
+  return (
+    <div style={{ background: C.dim, borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
+      <div style={{ ...st.label, marginBottom: 7 }}>Activity summary</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+        {[
+          ['Points', summary.points], ['Moderate', `${summary.moderateMinutes}m`],
+          ['Vigorous', `${summary.vigorousMinutes}m`], ['Calories', `${Math.round(summary.activeCalories || 0)} kcal`],
+        ].map(([label, value]) => <div key={label}><div style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted }}>{label}</div><div style={{ fontFamily: C.fDisplay, fontSize: 16, fontWeight: 800, color: C.text }}>{value}</div></div>)}
+      </div>
+      <div style={{ fontFamily: C.fMono, fontSize: 9, color: summary.quality === 'unavailable' ? C.muted : C.green, marginTop: 7 }}>
+        {summary.label}{summary.sampleCount ? ` · ${summary.sampleCount} HR samples` : ''}
+      </div>
+    </div>
+  );
+}
+
+export default function History({ sessions, setSessions, allExercises = {}, watchData, activitySummary, onAiExplain, helpers = {} }) {
   const deps = helpers;
   const { WORKOUTS, getIronWorkout, fmtDate } = deps;
   const [expanded, setExpanded] = useState(null);
@@ -439,7 +458,10 @@ export default function History({ sessions, setSessions, allExercises = {}, watc
             {expanded === sess.id && (
               <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
                 {editingId !== sess.id && sess.completed && (
-                  <WorkoutEffortReview session={sess} watchData={watchData} allExercises={allExercises} deps={deps} onAiExplain={onAiExplain} />
+                  <>
+                    <SessionActivitySummary session={sess} watchData={watchData} goals={activitySummary?.goals} />
+                    <WorkoutEffortReview session={sess} watchData={watchData} allExercises={allExercises} deps={deps} onAiExplain={onAiExplain} />
+                  </>
                 )}
                 {(editingId === sess.id ? draft.exercises : sess.exercises)?.map((ex, exIdx) => {
                   const def = allExercises[ex.id];

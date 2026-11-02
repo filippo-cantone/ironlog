@@ -8,6 +8,7 @@ import supabase from '../src/integrations/supabase.js';
 import charts from '../src/ui/charts/metrics.js';
 import workoutData from '../src/data/workouts.js';
 import importExport from '../src/storage/importExport.js';
+import activity from '../src/domain/activity.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
@@ -15,6 +16,10 @@ const { mapHealthRows, mergeHealthData, computeSleepProfile, computeReadiness, c
 const { safeParse, validateBackup } = store;
 const { shouldRestoreCloud, compareSyncRecords } = supabase;
 const { smoothLinePath, metricStatusColor } = charts;
+const {
+  DEFAULT_ACTIVITY_GOALS, normaliseGoals, calculateActivityPoints,
+  summarizeWeeklyActivity, buildSleepTimeline, calculateWeightTrend, buildGoalCoaching,
+} = activity;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
 
@@ -110,6 +115,10 @@ test('storage helpers reject malformed data without throwing', () => {
   assert.throws(() => validateBackup({ version: 99 }), /unsupported version/);
   assert.throws(() => validateBackup({ sessions: [null] }), /each session/);
   assert.equal(importExport.createBackup({ sessions: null }).sessions.length, 0);
+  const backup = importExport.createBackup({ activityGoals: { weeklyHeartPoints: 150 }, healthData: { weight: [] } });
+  assert.equal(backup.version, 3);
+  assert.equal(validateBackup(backup).activityGoals.weeklyHeartPoints, 150);
+  assert.throws(() => validateBackup({ activityGoals: [] }), /activityGoals must be an object/);
 });
 
 test('chart primitives produce smooth paths and meaningful status colours', () => {
@@ -125,4 +134,51 @@ test('workout catalogue exposes the full A/B/C split and selectable Iron Series 
   assert.equal(workoutData.IRON_WORKOUTS.length, 30);
   assert.equal(workoutData.IRON_WORKOUTS.find(day => day.day === 17)?.title, 'Complete Upper Body');
   assert.ok(workoutData.IRON_WORKOUTS.find(day => day.day === 17)?.exercises.length > 0);
+});
+
+test('activity points use measured Watch intensity before HR estimates', () => {
+  const measured = calculateActivityPoints({ workout: { durationMinutes: 30, intensity: 'moderate' }, maxHeartRate: 170 });
+  assert.equal(measured.points, 30);
+  assert.equal(measured.quality, 'measured');
+  const estimated = calculateActivityPoints({
+    workout: { durationMinutes: 4 }, maxHeartRate: 170,
+    heartRateSamples: [
+      { sample_at: '2026-11-02T08:00:00Z', heart_rate: 90 },
+      { sample_at: '2026-11-02T08:01:00Z', heart_rate: 125 },
+      { sample_at: '2026-11-02T08:02:00Z', heart_rate: 125 },
+    ],
+  });
+  assert.equal(estimated.points, 5);
+  assert.equal(estimated.source, 'heart_rate_estimate');
+});
+
+test('strength effort does not become aerobic points without Watch intensity or HR samples', () => {
+  const summary = summarizeWeeklyActivity({
+    now: new Date('2026-11-02T12:00:00Z'),
+    sessions: [{ id: 's1', completed: true, date: '2026-11-02T08:00:00Z', workout: 'A' }],
+    goals: DEFAULT_ACTIVITY_GOALS,
+  });
+  assert.equal(summary.strengthSessions, 1);
+  assert.equal(summary.points, 0);
+});
+
+test('sleep timeline and weight trend handle sparse health data', () => {
+  const sleep = buildSleepTimeline({ sleep: [{ date: '2026-11-02', value: 7.5 }], sleepDeep: [{ date: '2026-11-02', value: 1.2 }] }, { now: new Date('2026-11-02T23:00:00+11:00') });
+  assert.equal(sleep.availableNights, 1);
+  assert.equal(sleep.nights.at(-1).deep, 1.2);
+  const weight = calculateWeightTrend([{ date: '2026-11-01', value: 90 }, { date: '2026-11-02', value: 89.4 }]);
+  assert.equal(weight.direction, 'down');
+  assert.equal(weight.recentChange, -0.6);
+});
+
+test('goal coaching keeps suppressed HRV and pain ahead of activity goals', () => {
+  const goals = normaliseGoals({ weeklyStrengthSessions: 3 });
+  const coaching = buildGoalCoaching({
+    goals,
+    activitySummary: { points: 150, strengthSessions: 3, cyclingMinutes: 0 },
+    readiness: { status: 'suppressed' },
+    sessions: [{ completed: true, exercises: [{ sets: [{ pain: 4 }] }] }],
+  });
+  assert.match(coaching.summary, /recovery signal takes priority/);
+  assert.equal(coaching.limitingPatterns.some(item => item.includes('HRV')), true);
 });

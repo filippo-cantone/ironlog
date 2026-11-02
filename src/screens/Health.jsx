@@ -5,7 +5,7 @@ const { C, st } = theme;
 
 // HEALTH VIEW
 // ═══════════════════════════════════════════════════════════════════════
-export default function HealthView({ sessions, allExercises, healthData, setHealthData, Icon, onHealthPush, onAiExplain, helpers, components }) {
+export default function HealthView({ sessions, allExercises, healthData, setHealthData, activitySummary, activityGoals, setActivityGoals, sleepTimeline, weightTrend, goalCoaching, Icon, onHealthPush, onAiExplain, helpers, components }) {
   const {
     HEALTH_METRICS, healthWeeklyVolume, healthVolumeByGroup, healthConsistency, healthRecentPRs,
     healthRPETrend, healthWorkoutCorrelation, readinessFactors, localDateStr, lastNDaysReadings,
@@ -23,6 +23,7 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
   const [bulkText, setBulkText] = useState('');
   const [bulkError, setBulkError] = useState('');
   const [bulkResult, setBulkResult] = useState('');
+  const [weightInput, setWeightInput] = useState('');
 
   const completed   = sessions.filter(s => s.completed);
   const weeklyVol   = healthWeeklyVolume(sessions);
@@ -44,6 +45,12 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
   const rpePath = rpePts.length >= 2 ? `M${rpePts.join('L')}` : null;
 
   const sectionHeader = (label, icon) => <HealthSectionHeader label={label} icon={icon} />;
+
+  const progress = (value, target, color) => (
+    <div style={{ height: 7, background: C.dim, borderRadius: 8, overflow: 'hidden', marginTop: 5 }}>
+      <div style={{ height: '100%', width: `${target ? Math.min(100, Math.round((value / target) * 100)) : 0}%`, background: color, borderRadius: 8 }} />
+    </div>
+  );
 
   function openImport(metric) {
     setImportMetric(metric);
@@ -408,6 +415,75 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
         />
         {metricPanels.steps}
         {metricPanels.activeCal}
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        {sectionHeader('Activity Goals', 'target')}
+        <div style={{ ...st.card(), marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.45, marginBottom: 12 }}>
+            Activity points describe movement volume and intensity. They are separate from the HRV-led readiness decision.
+          </div>
+          {[
+            ['Heart points', activitySummary?.points || 0, activityGoals?.weeklyHeartPoints, C.blue],
+            ['Strength sessions', activitySummary?.strengthSessions || 0, activityGoals?.weeklyStrengthSessions, C.green],
+            ['Steps', activitySummary?.steps || 0, activityGoals?.dailySteps * 7, C.amber],
+            ['Active calories', activitySummary?.activeCalories || 0, activityGoals?.weeklyActiveCalories, C.purple],
+          ].filter(([, , target]) => target != null).map(([label, value, target, color]) => (
+            <div key={label} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontFamily: C.fMono, fontSize: 11 }}>
+                <span style={{ color: C.muted }}>{label}</span><span style={{ color: C.text }}>{Math.round(value).toLocaleString()} / {Math.round(target || 0).toLocaleString()}</span>
+              </div>
+              {progress(value, target, color)}
+            </div>
+          ))}
+          <div style={{ fontFamily: C.fMono, fontSize: 10, color: C.muted }}>
+            {activitySummary?.moderateMinutes || 0} moderate min · {activitySummary?.vigorousMinutes || 0} vigorous min · {activitySummary?.sessionSummaries?.filter(row => row.source === 'none').length || 0} workouts without Watch intensity
+          </div>
+        </div>
+        <div style={{ ...st.card(C.blue + '08'), borderColor: C.blue + '33', marginBottom: 16 }}>
+          <div style={{ ...st.label, color: C.blue, marginBottom: 8 }}>Goal coaching</div>
+          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.45, marginBottom: 8 }}>{goalCoaching?.summary}</div>
+          {(goalCoaching?.positivePatterns || []).map(item => <div key={item} style={{ fontSize: 11, color: C.green, marginTop: 4 }}>✓ {item}</div>)}
+          {(goalCoaching?.limitingPatterns || []).slice(0, 3).map(item => <div key={item} style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>• {item}</div>)}
+          <div style={{ fontSize: 11, color: C.blue, marginTop: 10 }}>{goalCoaching?.nextFocus}</div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        {sectionHeader('Sleep Timeline', 'moon')}
+        <div style={{ ...st.card(), marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: C.muted }}>Seven nights · {sleepTimeline?.availableNights || 0} available</div>
+            <div style={{ fontFamily: C.fMono, fontSize: 11, color: C.text }}>{sleepTimeline?.averageAsleep != null ? `${sleepTimeline.averageAsleep} h avg` : 'No sleep data'}</div>
+          </div>
+          {(sleepTimeline?.nights || []).map(night => {
+            const segments = [['deep', C.purple], ['core', C.blue], ['rem', C.green], ['awake', C.red]].filter(([key]) => night[key] != null);
+            const total = segments.reduce((sum, [key]) => sum + Number(night[key] || 0), 0) || Number(night.asleep) || 1;
+            return <div key={night.date} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: C.fMono, fontSize: 10, color: C.muted }}><span>{night.date.slice(5)}</span><span>{night.asleep != null ? `${night.asleep} h asleep` : 'No reading'}</span></div>
+              <div style={{ display: 'flex', height: 12, borderRadius: 8, overflow: 'hidden', background: C.dim, marginTop: 4 }}>
+                {segments.map(([key, color]) => <div key={key} title={`${key}: ${night[key]} h`} style={{ width: `${Math.max(2, (Number(night[key]) / total) * 100)}%`, background: color }} />)}
+              </div>
+            </div>;
+          })}
+          <div style={{ fontFamily: C.fMono, fontSize: 10, color: C.muted, marginTop: 8 }}>Stages are descriptive Apple Watch estimates; total sleep and sleep/wake timing are the more reliable signals.</div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        {sectionHeader('Body Trends', 'scale')}
+        <div style={{ ...st.card(), marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+            <div><div style={{ ...st.label, marginBottom: 4 }}>Weight</div><div style={{ fontFamily: C.fDisplay, fontSize: 28, fontWeight: 800, color: C.text }}>{weightTrend?.latest != null ? `${weightTrend.latest} kg` : 'No data'}</div></div>
+            <div style={{ fontFamily: C.fMono, fontSize: 11, color: weightTrend?.direction === 'down' ? C.green : C.muted }}>{weightTrend?.recentChange != null ? `${weightTrend.recentChange > 0 ? '+' : ''}${weightTrend.recentChange} kg latest change` : 'Import or add a reading'}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <input value={weightInput} onChange={e => setWeightInput(e.target.value)} type="number" inputMode="decimal" placeholder="kg" style={{ ...st.inp, flex: 1, textAlign: 'left' }} />
+            <button onClick={() => { const value = Number(weightInput); if (!Number.isFinite(value) || value <= 0) return; const date = new Date().toISOString().slice(0, 10); setHealthData(prev => ({ ...prev, weight: [...(prev.weight || []).filter(row => row.date !== date), { date, value }].sort((a, b) => a.date.localeCompare(b.date)) })); onHealthPush?.({ ...healthData, weight: [...(healthData.weight || []).filter(row => row.date !== date), { date, value }] }); setWeightInput(''); }} style={{ ...st.btn(C.blue, '#fff'), whiteSpace: 'nowrap' }}>Add weight</button>
+          </div>
+          <div style={{ fontFamily: C.fMono, fontSize: 10, color: C.muted, marginTop: 8 }}>Direction and context only. IronLog does not prescribe a calorie target.</div>
+        </div>
+        {metricPanels.weight}
       </div>
 
       <div style={{ marginTop: 24 }}>

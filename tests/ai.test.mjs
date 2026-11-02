@@ -46,11 +46,16 @@ test('AI context summarises full history without raw/private fields', () => {
     coachRec: { label: 'Train steady', detail: 'Keep effort controlled', flags: ['watch'] },
     allExercises: { bb_flat_bench: { name: 'Bench Press' } },
     focus: 'weekly review',
+    activitySummary: { points: 42, moderateMinutes: 20, vigorousMinutes: 11, strengthSessions: 2, cyclingMinutes: 35, steps: 42000, activeCalories: 1600 },
+    activityGoals: { weeklyHeartPoints: 150, weeklyStrengthSessions: 3 },
+    weightTrend: { count: 3, latest: 88.4, direction: 'down' },
   });
   assert.equal(context.schemaVersion, 'ironlog-ai-context-v1');
   assert.equal(context.training.count, 1);
   assert.equal(context.training.recent[0].exercises[0].name, 'Bench Press');
   assert.equal(context.watch.recent[0].sampleCount, 1);
+  assert.equal(context.activity.points, 42);
+  assert.equal(context.weight.direction, 'down');
   assert.equal(containsPrivateRawFields(context), false);
 });
 

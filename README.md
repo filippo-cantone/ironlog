@@ -146,6 +146,19 @@ IronLog does not present a clinically validated composite recovery score. The ac
 - Apple Health HRV is identified as **SDNN**. IronLog compares a seven-day rolling trend with Phill's personal history once there are at least 14 baseline readings and 3 rolling readings.
 - The decision band uses the smallest-worthwhile-change idea: the personal baseline mean plus or minus 0.5 baseline standard deviations. This is an evidence-informed training context, not a clinical threshold or a direct copy of lnRMSSD research protocols.
 - Readiness is classified as **within usual range**, **meaningfully suppressed**, **meaningfully elevated**, or **building baseline**. Resting HR, sleep duration/efficiency, wearable sleep stages, recent training, RPE, pain, and Apple Watch effort are shown as context rather than arbitrary weighted points.
+
+### Activity and health goals
+
+IronLog uses Apple Health and Apple Watch for activity evidence. Google Fit is a design reference only; there is no Google Fit integration. The activity layer is separate from readiness:
+
+- Home shows a compact Activity Balance panel for Heart Points-style activity, strength sessions, and cycling minutes.
+- Health shows weekly goal progress, deterministic goal coaching, a seven-night descriptive sleep timeline, and weight trend/manual entry.
+- Log shows per-session activity points, moderate/vigorous minutes, active calories, and Watch sample quality where a Watch workout matches.
+- Manage → Goals lets Phill edit weekly Heart Points, strength sessions, cycling minutes, daily steps, optional active calories, and optional personal maximum heart rate for HR-based estimates.
+- Watch intensity metadata is preferred. When it is missing, points are estimated from minute-level heart-rate samples and labelled with sample quality; if there is not enough information, IronLog reports that rather than inventing points.
+- Activity goals never override HRV-led readiness, pain safeguards, or medical constraints. Strength effort continues to use sets, RPE, pain, Watch effort, and progression rather than treating intermittent lifting heart rate as aerobic volume.
+
+The local preference key is `il_activity_goals`. JSON backups at schema version 3 include activity goals and health data when present.
 - Sleep is reported separately. Seven hours is used as the general adult minimum from the AASM consensus statement; deep, core, and REM stages remain descriptive because wearable stage estimates are less reliable than total sleep and sleep/wake detection.
 - Pain and medical-safety constraints always override readiness suggestions. A suppressed HRV trend reduces planned intensity or volume; it does not automatically prohibit all movement.
 
@@ -231,6 +244,7 @@ exercise_id: {
 | `il_workout_custom` | `{ A: [...extraIds], B: [...], C: [...] }` — user customisations to workouts |
 | `il_ai_insights` | Short-lived validated AI explanation cache; contains summaries, not raw health exports |
 | `il_ai_enabled` / `il_ai_consent` | Local AI preference and first-use disclosure state |
+| `il_activity_goals` | Editable activity targets and optional personal maximum heart rate |
 
 ---
 

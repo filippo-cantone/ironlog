@@ -7,7 +7,7 @@
 const HEALTH_KEYS = [
   'hrv', 'restingHr', 'steps', 'activeCal', 'cardio', 'bloodOxygen',
   'sleep', 'sleepDeep', 'sleepRem', 'sleepCore', 'sleepAwake',
-  'sleepInBed', 'sleepEfficiency',
+  'sleepInBed', 'sleepEfficiency', 'weight',
 ];
 
 const asNumber = value => {
@@ -218,6 +218,9 @@ function trimContext(context, maxChars) {
       peakHeartRate: current.watch?.peakHeartRate || null,
       sampleCount: current.watch?.sampleCount || 0,
     },
+    activity: current.activity || null,
+    weight: current.weight || null,
+    goalCoaching: current.goalCoaching || null,
     rules: current.rules || {},
     truncated: true,
   };
@@ -228,7 +231,7 @@ function trimContext(context, maxChars) {
   };
 }
 
-export function buildAiContext({ healthData, sessions, watchData, recovery, coachRec, allExercises, focus, maxChars = 50000 } = {}) {
+export function buildAiContext({ healthData, sessions, watchData, recovery, coachRec, allExercises, focus, maxChars = 50000, activitySummary, activityGoals, sleepTimeline, weightTrend, goalCoaching } = {}) {
   const context = {
     schemaVersion: 'ironlog-ai-context-v1',
     generatedAt: new Date().toISOString(),
@@ -236,6 +239,39 @@ export function buildAiContext({ healthData, sessions, watchData, recovery, coac
     health: summarizeHealthData(healthData),
     training: summarizeSessions(sessions, { allExercises }),
     watch: summarizeWatchData(watchData),
+    activity: activitySummary ? {
+      points: activitySummary.points || 0,
+      moderateMinutes: activitySummary.moderateMinutes || 0,
+      vigorousMinutes: activitySummary.vigorousMinutes || 0,
+      strengthSessions: activitySummary.strengthSessions || 0,
+      cyclingMinutes: activitySummary.cyclingMinutes || 0,
+      steps: activitySummary.steps || 0,
+      activeCalories: activitySummary.activeCalories || 0,
+      goals: activityGoals || null,
+    } : null,
+    sleepTimeline: sleepTimeline ? {
+      availableNights: sleepTimeline.availableNights || 0,
+      averageAsleep: round(sleepTimeline.averageAsleep, 1),
+      consistencyHours: round(sleepTimeline.consistencyHours, 1),
+      nights: (sleepTimeline.nights || []).map(night => ({
+        date: night.date, asleep: round(night.asleep, 1), inBed: round(night.inBed, 1),
+        deep: round(night.deep, 1), rem: round(night.rem, 1), core: round(night.core, 1),
+        awake: round(night.awake, 1), efficiency: round(night.efficiency, 1),
+      })),
+    } : null,
+    weight: weightTrend ? {
+      count: weightTrend.count || 0,
+      latest: round(weightTrend.latest, 1),
+      change: round(weightTrend.change, 1),
+      recentChange: round(weightTrend.recentChange, 1),
+      direction: weightTrend.direction,
+    } : null,
+    goalCoaching: goalCoaching ? {
+      summary: String(goalCoaching.summary || '').slice(0, 240),
+      positivePatterns: (goalCoaching.positivePatterns || []).slice(0, 5),
+      limitingPatterns: (goalCoaching.limitingPatterns || []).slice(0, 5),
+      nextFocus: String(goalCoaching.nextFocus || '').slice(0, 240),
+    } : null,
     rules: {
       recovery: recovery ? {
         status: String(recovery.status || '').slice(0, 30),
