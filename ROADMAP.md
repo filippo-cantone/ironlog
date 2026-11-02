@@ -11,7 +11,8 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 2 chart step: extracted smooth-line geometry and metric colour classification into `src/ui/charts/metrics.js` with automated coverage
 - ✅ Phase 2 UI step: extracted the bottom navigation into `src/ui/Nav.jsx`; it now receives the icon renderer as an explicit dependency
 - ✅ Phase 2 screen step: extracted Progress and Rides behind explicit props and callbacks
-- 🔄 Next: extract the Health screen and stable workout/health data modules, then move the remaining major screens behind the same App state contract
+- ✅ Phase 3 data step: moved the canonical A/B/C and 30-day Iron Series workout catalogue to `src/data/workouts.js`
+- 🔄 Next: extract the Health screen and exercise/stretches data modules, then move the remaining major screens behind the same App state contract
 
 ---
 

@@ -6,6 +6,7 @@ import health from '../src/domain/health.js';
 import store from '../src/storage/localStore.js';
 import supabase from '../src/integrations/supabase.js';
 import charts from '../src/ui/charts/metrics.js';
+import workoutData from '../src/data/workouts.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
@@ -52,4 +53,11 @@ test('chart primitives produce smooth paths and meaningful status colours', () =
   assert.match(path, /^M0\.0,10\.0 C/);
   assert.equal(metricStatusColor({ key: 'hrv', higherBetter: true }, 70, 100, C), '#red');
   assert.equal(metricStatusColor({ key: 'hrv', higherBetter: true }, 100, 100, C), '#green');
+});
+
+test('workout catalogue exposes the full A/B/C split and selectable Iron Series days', () => {
+  assert.deepEqual(Object.keys(workoutData.WORKOUTS), ['A', 'B', 'C']);
+  assert.equal(workoutData.IRON_WORKOUTS.length, 30);
+  assert.equal(workoutData.IRON_WORKOUTS.find(day => day.day === 17)?.title, 'Complete Upper Body');
+  assert.ok(workoutData.IRON_WORKOUTS.find(day => day.day === 17)?.exercises.length > 0);
 });

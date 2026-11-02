@@ -9,6 +9,7 @@ import chartDomain from './ui/charts/metrics.js';
 import Nav from './ui/Nav.jsx';
 import ProgressScreen from './screens/Progress.jsx';
 import RidesScreen from './screens/Rides.jsx';
+import workoutData from './data/workouts.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
@@ -17,6 +18,7 @@ const { safeParse, validateBackup } = storageDomain;
 const { shouldRestoreCloud } = syncDomain;
 const { C, st, dash } = theme;
 const { smoothLinePath, chartColorKey, metricChartColorKey, metricStatusColor, gradientStopsForPoints: chartGradientStops } = chartDomain;
+const { WORKOUTS, IRON_WORKOUTS } = workoutData;
 
 // ═══════════════════════════════════════════════════════════════════════
 // THEME
@@ -831,99 +833,6 @@ const EXERCISES = {
   reverse_lunge:      { name: 'Reverse Lunge',               muscle: 'Legs',    unit: 'kg',   defaultReps: 8,   defaultSets: 3, repMax: 10, cue: 'Step back, lower rear knee toward floor. Torso upright. Drive through front heel to return. Safer for lower back than forward lunges.', perSide: true, canBW: true, demoId: 'ufjvjxrGyFM', demo: YT('reverse+lunge+proper+form+dumbbell+tutorial') },
   farmers_walk:       { name: "Farmer's Walk",               muscle: 'Core',    unit: 'kg',   defaultReps: null, defaultDuration: 20, defaultSets: 3, repMax: null, cue: 'Stand tall, brace core hard, do not lean. Walk 5m each way. KB or DB. Builds anti-lateral-flexion core strength and grip.', isTimed: true, demoId: '4d-4gKn_lKk', demo: YT('farmers+walk+exercise+form+core+grip+tutorial') },
 };
-
-const WORKOUTS = {
-  A: {
-    title: 'Push — Chest · Shoulders · Triceps',
-    exercises: [
-      'bb_flat_bench',      // Chest / Triceps
-      'p_db_fly',           // Chest / Shoulders — isolation, fills chest gap
-      'p_db_shoulder_press',// Shoulders / Triceps
-      'p_lateral_raise',    // Shoulders — lateral head
-      'p_rear_delt_fly',    // Shoulders / Back — balances pushing, shoulder health
-      'p_band_ext_rot',     // Shoulders — rotator cuff, critical for bursitis
-      'p_close_grip_bench', // Triceps / Chest
-      'p_tricep_pushdown',  // Triceps — band, door anchor
-    ],
-    finisher: [
-      { id: 'fin_wall_slides', text: 'Wall slides — 2 × 6 slow (pain-free only)' },
-      { id: 'fin_pull_aparts', text: 'Band pull-aparts — 2 × 12' },
-    ],
-  },
-  B: {
-    title: 'Pull — Back · Biceps · Hinge',
-    exercises: [
-      'kb_deadlift',        // Hinge / Glutes — raised height
-      'cs_db_row',          // Back / Biceps — chest supported
-      'reverse_fly',        // Back / Shoulders — rear delt, posterior chain
-      'face_pull',          // Shoulders / Back — band, door anchor, shoulder health
-      'p_straight_arm_pd',  // Back / Shoulders — lat isolation, door anchor high hook
-      'p_db_bicep_curl',    // Biceps / Forearms
-      'p_hammer_curl',      // Biceps / Forearms — neutral grip
-    ],
-    finisher: [
-      { id: 'fin_ham_floss',   text: 'Hamstring floss (band, lying) — 45 sec each side' },
-      { id: 'fin_childs_pose', text: "Child's pose breathing — 60 sec" },
-    ],
-  },
-  C: {
-    title: 'Legs + Core',
-    exercises: [
-      'goblet_squat',       // Legs / Glutes
-      'p_sumo_squat',       // Legs / Glutes — inner thigh, previously untrained
-      'rdl',                // Hinge / Glutes
-      'hip_thrust',         // Glutes / Legs
-      'reverse_lunge',      // Legs / Glutes
-      'sb_ham_curl',        // Legs / Core — hamstring isolation
-      'p_cable_kickback',   // Glutes / Legs — ankle strap, door anchor low hook
-      'calf_raises',        // Legs — previously untrained
-      'p_dead_bug',         // Core — deep abs, spine neutral, safe for lower back
-      'p_plank',            // Core — isometric abs, full body stability
-      'pallof_press',       // Core — anti-rotation, band
-      'farmers_walk',       // Core / Forearms
-    ],
-    finisher: [
-      { id: 'fin_ext_rotation', text: 'Band external rotation — 2 × 10 each side' },
-      { id: 'fin_single_leg',   text: 'Single-leg balance — 30 sec each side' },
-    ],
-  },
-};
-
-// ─── IRON SERIES WORKOUTS — 30-day dumbbell programme ──────────────────────
-// ytId: direct YouTube video ID. supersets: adjacent exercise index pairs.
-// equipment: items to set up before starting (sourced from original video descriptions).
-const IRON_WORKOUTS = [
-  { day: 1,  title: 'Legs',                      ytId: 'SCxNnWW2zB8', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench', 'Yoga Block'],   exercises: ['iron_heel_elev_squat', 'rdl', 'split_squat', 'iron_bulgarian_split', 'p_sumo_squat'] },
-  { day: 2,  title: 'Upper Body',                 ytId: 'tczVC2rRO7U', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['p_db_shoulder_press', 'iron_db_row', 'db_bench', 'p_lateral_raise', 'iron_pushup'] },
-  { day: 3,  title: 'Glutes',                     ytId: '2Qd-LJNJYWA', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench', 'Glute Band'],    exercises: ['hip_thrust', 'iron_kas_bridge', 'iron_sl_rdl', 'p_sumo_squat', 'iron_bw_kickback'] },
-  { day: 4,  title: 'Full Body Circuits',         ytId: 'xVj2Q2_2EJY', format: '9 moves × 3 rounds / 40s work / 20s rest', defaultSets: 3, defaultDuration: 40, equipment: ['Dumbbells', 'Exercise Mat', 'Yoga Block'],                     exercises: ['iron_db_row', 'reverse_lunge', 'rdl', 'db_bench', 'p_db_shoulder_press', 'iron_heel_elev_squat', 'p_hammer_curl', 'p_skull_crushers', 'db_row_1arm'] },
-  { day: 5,  title: 'Arms & Abs',                 ytId: 'U-OYrmX2-k0', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['p_db_bicep_curl', 'iron_overhead_tricep', 'p_hammer_curl', 'iron_diamond_pushup', 'p_plank'] },
-  { day: 6,  title: 'Quads',                      ytId: 'UBlcDuodQXM', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Yoga Block'],                     exercises: ['iron_heel_elev_squat', 'iron_cyclist_squat', 'iron_fwd_lunge', 'iron_1_5_goblet', 'iron_squat_pulse'] },
-  { day: 7,  title: 'Shoulders & Triceps',        ytId: '0i5RILMI1Mk', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench'],                  exercises: ['p_lateral_raise', 'iron_lean_lateral', 'iron_bench_dip', 'p_skull_crushers', 'p_rear_delt_fly'] },
-  { day: 8,  title: 'Glutes & Hamstrings',        ytId: 'CFF4vI0oGPg', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench', 'Glute Band'],    exercises: ['rdl', 'hip_thrust', 'iron_b_stance_rdl', 'iron_sumo_dl', 'iron_banded_abduct'] },
-  { day: 9,  title: 'Full Body Cardio',           ytId: 'BAtaHTTyfPI', format: 'Continuous interval circuit',              defaultSets: 3, defaultDuration: 40, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['iron_db_row', 'goblet_squat', 'reverse_lunge', 'iron_plank_tap'] },
-  { day: 10, title: 'Back & Biceps',              ytId: 'xPxCcwG56Po', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['iron_pronated_row', 'iron_supinated_row', 'p_hammer_curl', 'iron_pullover', 'iron_zottman'] },
-  { day: 11, title: 'Legs + Calves',              ytId: 'g4_muCNsPdk', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Yoga Block'],                     exercises: ['iron_suitcase_squat', 'iron_curtsy_lunge', 'rdl', 'calf_raises', 'iron_seated_calf'] },
-  { day: 12, title: 'Chest & Triceps',            ytId: 'Hww8Y6GxVbw', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench'],                  exercises: ['db_bench', 'iron_incline_press', 'p_db_fly', 'p_close_grip_bench', 'iron_bench_dip'] },
-  { day: 13, title: 'Posterior Chain',            ytId: 'ZQfJ36EXX2s', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench', 'Glute Band'],    exercises: ['rdl', 'db_row_1arm', 'iron_hip_hinge_hold', 'hip_thrust', 'iron_bw_hyper_ext'] },
-  { day: 14, title: 'Unilateral Full Body',       ytId: 'KAEALlzcMcQ', format: '4 × 60s per side',                         defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench'],                  exercises: ['db_row_1arm', 'iron_sl_rdl', 'step_ups', 'p_db_shoulder_press'] },
-  { day: 15, title: 'Shoulders',                  ytId: 'xbtAVsMdVSY', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['p_db_shoulder_press', 'p_lateral_raise', 'iron_front_raise', 'iron_rear_delt_row', 'iron_lateral_hold'] },
-  { day: 16, title: 'Hamstrings',                 ytId: 'knrmFCI4XiI', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['iron_lying_ham_curl', 'rdl', 'iron_hip_hinge_hold'] },
-  { day: 17, title: 'Complete Upper Body',        ytId: '_UFvhXTN2-U', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['iron_db_row', 'db_bench', 'p_db_shoulder_press', 'p_db_bicep_curl', 'iron_overhead_tricep'] },
-  { day: 18, title: 'Glutes Supersets',           ytId: 'EN-zuVg4mok', format: 'Supersets — no rest between pairs',         defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench', 'Glute Band'],    exercises: ['hip_thrust', 'iron_kas_bridge', 'p_sumo_squat', 'iron_squat_pulse', 'iron_b_stance_hip_thrust', 'iron_glute_bridge'], supersets: [[0, 1], [2, 3], [4, 5]] },
-  { day: 19, title: 'Full Body Muscle Building',  ytId: 'SjSJU-LOLf8', format: 'Straight sets + supersets mixed',           defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['goblet_squat', 'db_row_1arm', 'db_bench', 'p_hammer_curl'] },
-  { day: 20, title: 'Arms, Abs & Core Supersets', ytId: 'B-XyUrXEaCw', format: 'Supersets — 60s on back-to-back moves',     defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['p_db_bicep_curl', 'p_hammer_curl', 'iron_overhead_tricep', 'iron_tricep_kickback', 'p_dead_bug'], supersets: [[0, 1], [2, 3]] },
-  { day: 21, title: 'Legs + Step-ups',            ytId: 'ucTDJRJjFQ4', format: '4 × 60s work / 30s rest',                  defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench'],                  exercises: ['step_ups', 'reverse_lunge', 'iron_crossover_stepup', 'goblet_squat'] },
-  { day: 22, title: 'Chest & Back Antagonist',    ytId: 'dnHSrYHT0Zk', format: 'Antagonist pairs — push immediately to pull', defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                 exercises: ['db_bench', 'iron_db_row', 'p_db_fly', 'p_rear_delt_fly', 'p_close_grip_bench', 'iron_pronated_row'], supersets: [[0, 1], [2, 3], [4, 5]] },
-  { day: 23, title: 'Glutes & Hamstrings Supersets', ytId: 'K-tLY96Jq6o', format: 'Supersets — extended tension blocks',    defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench', 'Glute Band'],    exercises: ['rdl', 'iron_hip_hinge_hold', 'hip_thrust', 'iron_glute_bridge', 'p_sumo_squat', 'iron_squat_pulse'], supersets: [[0, 1], [2, 3], [4, 5]] },
-  { day: 24, title: 'Full Body Circuits',         ytId: 'LubR2sFpT_E', format: 'Continuous circuit rounds',                defaultSets: 3, defaultDuration: 40, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['goblet_squat', 'iron_db_row', 'p_lateral_raise', 'reverse_lunge', 'iron_diamond_pushup'] },
-  { day: 25, title: 'Shoulders Supersets',        ytId: 'ReE9zLhksbc', format: 'Supersets — deltoid continuous fatigue',    defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['p_db_shoulder_press', 'p_lateral_raise', 'iron_front_raise', 'iron_rear_delt_row', 'p_rear_delt_fly', 'iron_shrug'], supersets: [[0, 1], [2, 3], [4, 5]] },
-  { day: 26, title: 'Legs Circuits',              ytId: 'xefU5YoKMoI', format: 'High density leg circuit',                 defaultSets: 3, defaultDuration: 40, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench'],                  exercises: ['step_ups', 'split_squat', 'iron_squat_hold', 'rdl'] },
-  { day: 27, title: 'Upper Body Antagonist',      ytId: 'tfgeRvBRtME', format: 'Antagonist pairs — push vs pull',           defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['iron_db_row', 'db_bench', 'p_lateral_raise', 'iron_rear_delt_row', 'p_hammer_curl', 'iron_tricep_kickback'], supersets: [[0, 1], [2, 3], [4, 5]] },
-  { day: 28, title: 'Iron Glutes',                ytId: '9xA0yL0KXkU', format: '4 × constant tension blocks',              defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Chair or Bench', 'Glute Band'],    exercises: ['hip_thrust', 'iron_kas_bridge', 'p_sumo_squat', 'iron_frog_pump'] },
-  { day: 29, title: 'Final Full Body',            ytId: 'bOJpvux_klI', format: '4 heavy compound sets per movement',        defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat', 'Yoga Block'],                     exercises: ['iron_heel_elev_squat', 'rdl', 'iron_db_row', 'p_db_shoulder_press', 'suitcase_carry'] },
-  { day: 30, title: 'Arms, Abs & Core Finale',    ytId: 'P4cMTLqtRII', format: 'High volume sets + finisher track',         defaultSets: 4, defaultDuration: 60, equipment: ['Dumbbells', 'Exercise Mat'],                                    exercises: ['p_db_bicep_curl', 'iron_overhead_tricep', 'p_hammer_curl', 'p_skull_crushers', 'p_plank'] },
-];
 
 // ═══════════════════════════════════════════════════════════════════════
 // SUPABASE SYNC
@@ -6968,111 +6877,6 @@ function HealthMetricPanel({ metric, readings, chartData, latest, trainedDates, 
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// PROGRESS
-// ═══════════════════════════════════════════════════════════════════════
-function Progress({ sessions, allExercises = EXERCISES }) {
-  // Group exercises by workout, sorted alphabetically within each group
-  const workoutGroups = ['A', 'B', 'C'].map(key => {
-    const w = WORKOUTS[key];
-    const shortTitle = key === 'A' ? 'Push' : key === 'B' ? 'Pull' : 'Legs + Core';
-    const ids = w.exercises
-      .filter(id => allExercises[id])
-      .sort((a, b) => (allExercises[a]?.name || a).localeCompare(allExercises[b]?.name || b));
-    return { key, label: `Workout ${key} — ${shortTitle}`, ids };
-  });
-  const workoutExIds = new Set(['A', 'B', 'C'].flatMap(k => WORKOUTS[k].exercises));
-  const otherIds = Object.keys(allExercises)
-    .filter(id => !workoutExIds.has(id))
-    .sort((a, b) => (allExercises[a]?.name || a).localeCompare(allExercises[b]?.name || b));
-
-  const firstId = workoutGroups[0]?.ids[0] || Object.keys(allExercises)[0];
-  const [selEx, setSelEx] = useState(firstId);
-
-  const def = allExercises[selEx] || EXERCISES[selEx];
-
-  const data = sessions
-    .filter(s => s.exercises?.some(e => e.id === selEx))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .map(s => {
-      const ex = s.exercises.find(e => e.id === selEx);
-      if (!ex) return null;
-      const weights = ex.sets.map(s => Number(s.weight) || 0);
-      const reps    = ex.sets.map(s => Number(s.reps)   || 0);
-      const volume  = ex.sets.reduce((t, s) => t + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
-      const maxRPE  = Math.max(...ex.sets.map(s => Number(s.rpe) || 0).filter(Boolean));
-      return {
-        date:   fmtShortDate(s.date),
-        weight: def.unit === 'kg' ? (Math.max(...weights) || null) : null,
-        reps:   Math.max(...reps) || null,
-        volume: volume || null,
-        rpe:    maxRPE || null,
-      };
-    }).filter(Boolean);
-
-  if (!sessions.length) return (
-    <div style={{ padding: 16, textAlign: 'center', color: C.muted, paddingTop: 64 }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>▲</div>
-      <div style={{ fontFamily: C.fDisplay, fontSize: 16, textTransform: 'uppercase' }}>No data yet</div>
-    </div>
-  );
-
-  return (
-    <div style={{ padding: 16 }}>
-      <div style={{ ...st.h2, marginBottom: 16 }}>Progress</div>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ ...st.label, marginBottom: 6 }}>Exercise</div>
-        <select value={selEx} onChange={e => setSelEx(e.target.value)}
-          style={{ ...st.inp, textAlign: 'left', fontSize: 14, padding: '10px 12px' }}>
-          {workoutGroups.map(({ key, label, ids }) => (
-            <optgroup key={key} label={label}>
-              {ids.map(id => <option key={id} value={id}>{allExercises[id]?.name || id}</option>)}
-            </optgroup>
-          ))}
-          {otherIds.length > 0 && (
-            <optgroup label="Other">
-              {otherIds.map(id => <option key={id} value={id}>{allExercises[id]?.name || id}</option>)}
-            </optgroup>
-          )}
-        </select>
-      </div>
-
-      {data.length < 2 ? (
-        <div style={{ ...st.card(), textAlign: 'center', color: C.muted, padding: 32, fontSize: 13 }}>
-          Need at least 2 sessions with this exercise to show a trend.
-        </div>
-      ) : (
-        <div style={{ ...st.col(12) }}>
-          {def.unit === 'kg' && (
-            <div style={{ ...st.card() }}>
-              <div style={{ ...st.label, marginBottom: 8 }}>Top Set Weight (kg)</div>
-              <MiniLineChart data={data} dataKey="weight" color={C.amber} height={160} />
-            </div>
-          )}
-          {(def.unit === 'bw' || def.unit === 'band') && (
-            <div style={{ ...st.card() }}>
-              <div style={{ ...st.label, marginBottom: 8 }}>Top Set Reps</div>
-              <MiniLineChart data={data} dataKey="reps" color={C.green} height={160} />
-            </div>
-          )}
-          {def.unit === 'kg' && data.some(d => d.volume) && (
-            <div style={{ ...st.card() }}>
-              <div style={{ ...st.label, marginBottom: 8 }}>Session Volume (kg total)</div>
-              <MiniLineChart data={data} dataKey="volume" color={C.blue} height={140} />
-            </div>
-          )}
-          {data.some(d => d.rpe) && (
-            <div style={{ ...st.card() }}>
-              <div style={{ ...st.label, marginBottom: 8 }}>Session RPE</div>
-              <MiniLineChart data={data} dataKey="rpe" color={C.purple} height={130} domain={[5, 10]} />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
 // HEALTH VIEW
 // ═══════════════════════════════════════════════════════════════════════
 function HealthView({ sessions, allExercises, healthData, setHealthData }) {
@@ -7525,117 +7329,6 @@ function HealthView({ sessions, allExercises, healthData, setHealthData }) {
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// RIDES
-// ═══════════════════════════════════════════════════════════════════════
-function Rides({ rides, setRides }) {
-  const [open, setOpen] = useState(false);
-  const [dur, setDur] = useState('');
-  const [dist, setDist] = useState('');
-  const [rpe, setRpe] = useState('');
-  const [type, setType] = useState('moderate');
-  const [notes, setNotes] = useState('');
-
-  function log() {
-    if (!dur) return;
-    const ride = { id: Date.now().toString(), date: new Date().toISOString(), duration: +dur, distance: dist ? +dist : null, effort: rpe ? +rpe : null, type, notes };
-    setRides(p => [...p, ride]);
-    pushRide(ride); // fire-and-forget cloud backup
-    setOpen(false); setDur(''); setDist(''); setRpe(''); setType('moderate'); setNotes('');
-  }
-
-  const typeColor = { easy: C.green, moderate: C.amber, hard: C.blue, hilly: C.amber, recovery: C.green, intervals: C.blue, sprinkles: C.blue, tempo: C.amber, long: C.green };
-  const sorted = [...rides].reverse();
-
-  return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={st.h2}>Rides</div>
-        <button style={{ ...st.btnSm(), padding: '8px 14px' }} onClick={() => setOpen(!open)}>+ Log Ride</button>
-      </div>
-
-      {open && (
-        <div style={{ ...st.card(), marginBottom: 16 }}>
-          <div style={{ ...st.col(12) }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <div style={{ ...st.label, marginBottom: 5 }}>Duration (min)</div>
-                <input type="number" inputMode="numeric" value={dur} onChange={e => setDur(e.target.value)} style={{ ...st.inp }} placeholder="e.g. 45" />
-              </div>
-              <div>
-                <div style={{ ...st.label, marginBottom: 5 }}>Distance (km)</div>
-                <input type="number" inputMode="decimal" value={dist} onChange={e => setDist(e.target.value)} style={{ ...st.inp }} placeholder="e.g. 18.5" />
-              </div>
-            </div>
-            <div>
-              <div style={{ ...st.label, marginBottom: 5 }}>Ride type</div>
-              <select value={type} onChange={e => setType(e.target.value)} style={{ ...st.inp, textAlign: 'left', padding: '10px 12px' }}>
-                <option value="easy">Easy — felt easy, could talk</option>
-                <option value="moderate">Moderate — working steadily</option>
-                <option value="hard">Hard — really pushed it</option>
-                <option value="hilly">Hilly — lots of climbing</option>
-                <option value="recovery">Recovery — very easy spin</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ ...st.label, marginBottom: 5 }}>Effort (1–10)</div>
-              <input type="number" inputMode="numeric" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)} style={{ ...st.inp }} placeholder="e.g. 5" />
-            </div>
-            <div>
-              <div style={{ ...st.label, marginBottom: 5 }}>Notes</div>
-              <input type="text" value={notes} onChange={e => setNotes(e.target.value)} style={{ ...st.inp, textAlign: 'left', padding: '10px 12px' }} placeholder="How was it?" />
-            </div>
-            <button style={{ ...st.btn() }} onClick={log}>Save Ride</button>
-          </div>
-        </div>
-      )}
-
-      {/* Programme guide */}
-      <div style={{ ...st.card(), marginBottom: 16, padding: '12px 14px' }}>
-        <div style={{ ...st.label, marginBottom: 8 }}>Programme Guide</div>
-        {[
-          { phase: 'Wks 1–2', text: '2 rides/week · 20–30 min · keep it easy, conversational pace' },
-          { phase: 'Wks 3–4', text: '2–3/week · 25–40 min · mostly easy, occasionally moderate effort' },
-          { phase: 'Wk 5+',   text: '3/week · mix of easy, moderate, and one harder or hilly ride' },
-        ].map((r, i) => (
-          <div key={i} style={{ display: 'flex', gap: 10, fontSize: 12, padding: '4px 0', borderBottom: i < 2 ? `1px solid ${C.dim}` : 'none' }}>
-            <span style={{ fontFamily: C.fMono, color: C.amber, minWidth: 56 }}>{r.phase}</span>
-            <span style={{ color: C.muted }}>{r.text}</span>
-          </div>
-        ))}
-      </div>
-
-      {!rides.length ? (
-        <div style={{ textAlign: 'center', color: C.muted, paddingTop: 32 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>○</div>
-          <div style={{ fontFamily: C.fDisplay, fontSize: 14, textTransform: 'uppercase' }}>No rides logged yet</div>
-        </div>
-      ) : (
-        <div style={{ ...st.col() }}>
-          {sorted.map(r => (
-            <div key={r.id} style={{ ...st.card(), display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px' }}>
-              <div>
-                <div style={{ ...st.row, marginBottom: 4 }}>
-                  <span style={st.pill(typeColor[r.type] || C.muted)}>{r.type}</span>
-                  {r.effort && <span style={{ ...st.mono(11, C.muted) }}>RPE {r.effort}</span>}
-                </div>
-                {r.notes && <div style={{ fontSize: 12, color: C.muted }}>{r.notes}</div>}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                {r.distance != null && (
-                  <div style={{ fontFamily: C.fMono, fontSize: 22, color: C.amber, lineHeight: 1 }}>{r.distance}<span style={{ fontSize: 11, color: C.muted }}>km</span></div>
-                )}
-                <div style={{ fontFamily: C.fMono, fontSize: r.distance != null ? 15 : 22, color: C.text, lineHeight: 1.4 }}>{r.duration}<span style={{ fontSize: 11, color: C.muted }}>min</span></div>
-                <div style={{ ...st.mono(10, C.muted) }}>{fmtDate(r.date)}</div>
-              </div>
-            </div>
-          ))}
         </div>
       )}
     </div>

@@ -95,6 +95,7 @@ ironlog/
 │   ├── ui/charts/           ← shared chart geometry and metric colour helpers
 │   ├── ui/Nav.jsx           ← shared bottom navigation
 │   ├── screens/             ← extracted Progress and Rides screens (more to follow)
+│   ├── data/workouts.js     ← canonical A/B/C and Iron Series programmes
 │   ├── domain/              ← pure session, health, progression logic
 │   ├── storage/             ← validated persistence and backup helpers
 │   └── integrations/        ← Supabase response and sync helpers
@@ -123,6 +124,7 @@ All colours and font names in a single object. Change colours here to restyle th
 - `WARMUP` — warm-up checklist items (shared across all workouts)
 - `EXERCISES` — main exercise library (keyed by ID string)
 - `WORKOUTS` — defines A, B, C workouts (title, exercise IDs, finisher checklist)
+- `src/data/workouts.js` — canonical A/B/C and Iron Series programme definitions used by the app
 - `PRESET_LIBRARY` — additional exercises not in default workouts but available to add
 
 Both `EXERCISES` and `PRESET_LIBRARY` are merged at runtime:

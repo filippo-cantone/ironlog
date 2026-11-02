@@ -12,6 +12,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Extracted shared smooth-chart geometry and metric colour classification into `src/ui/charts/metrics.js`, with a focused regression test
 - Extracted the bottom navigation into `src/ui/Nav.jsx` with explicit theme and icon dependencies
 - Extracted the Progress and Rides screens into `src/screens/` with explicit state and persistence callbacks
+- Moved the A/B/C and 30-day Iron Series workout catalogue into `src/data/workouts.js` and added a catalogue regression test
 
 ## 2026-11-02 — Iron Series week/day picker (Codex)
 
