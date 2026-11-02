@@ -4,6 +4,9 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
+### Architecture refactor — in progress — Codex
+- Modularise IronLog gradually, beginning with safety/data-integrity foundations while preserving the current GitHub Pages deployment.
+
 ---
 
 ## Current State (as of 2026-06-07)
