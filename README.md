@@ -92,6 +92,7 @@ ironlog/
 │   ├── main.jsx             ← bundle entry point
 │   ├── runtime.js           ← CDN React adapter
 │   ├── ui/theme.js          ← shared colours, typography, and style tokens
+│   ├── ui/charts/           ← shared chart geometry and metric colour helpers
 │   ├── domain/              ← pure session, health, progression logic
 │   ├── storage/             ← validated persistence and backup helpers
 │   └── integrations/        ← Supabase response and sync helpers

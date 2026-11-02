@@ -5,6 +5,7 @@ import healthDomain from './domain/health.js';
 import storageDomain from './storage/localStore.js';
 import syncDomain from './integrations/supabase.js';
 import theme from './ui/theme.js';
+import chartDomain from './ui/charts/metrics.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
@@ -12,6 +13,7 @@ const { emptyHealthData, mergeHealthData } = healthDomain;
 const { safeParse, validateBackup } = storageDomain;
 const { shouldRestoreCloud } = syncDomain;
 const { C, st, dash } = theme;
+const { smoothLinePath, chartColorKey, metricChartColorKey, metricStatusColor, gradientStopsForPoints: chartGradientStops } = chartDomain;
 
 // ═══════════════════════════════════════════════════════════════════════
 // THEME
@@ -2647,55 +2649,6 @@ function FatigueBar({ level, color }) {
   );
 }
 
-function smoothLinePath(points, tension = 0.9) {
-  if (!points?.length) return '';
-  if (points.length === 1) return `M${points[0].x},${points[0].y}`;
-  const c = tension / 6;
-  return points.map((p, i) => {
-    if (i === 0) return `M${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-    const p0 = points[i - 2] || points[i - 1];
-    const p1 = points[i - 1];
-    const p2 = p;
-    const p3 = points[i + 1] || p2;
-    const cp1x = p1.x + (p2.x - p0.x) * c;
-    const cp1y = p1.y + (p2.y - p0.y) * c;
-    const cp2x = p2.x - (p3.x - p1.x) * c;
-    const cp2y = p2.y - (p3.y - p1.y) * c;
-    return `C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }).join(' ');
-}
-
-function chartColorKey() {
-  return [
-    { label: 'Good / normal', color: C.green },
-    { label: 'Near baseline', color: '#45a8f5' },
-    { label: 'Caution', color: '#f4d735' },
-    { label: 'Elevated caution', color: '#ff9f1c' },
-    { label: 'High strain', color: C.red },
-  ];
-}
-
-function metricChartColorKey(metric) {
-  if (metric?.key === 'activeCal') {
-    return [
-      { label: 'Low movement', color: '#45a8f5' },
-      { label: 'Usual activity', color: C.green },
-      { label: 'Active day', color: C.amber },
-      { label: 'Very active', color: C.purple },
-    ];
-  }
-  return chartColorKey();
-}
-
-function gradientStopsForPoints(points, metric, baseline, fallbackColor) {
-  const safePoints = points || [];
-  if (safePoints.length < 2) return [{ offset: '0%', color: fallbackColor || metric?.color || C.blue }];
-  return safePoints.map((p, i) => ({
-    offset: `${Math.round((i / (safePoints.length - 1)) * 100)}%`,
-    color: metricStatusColor(metric, p.value, baseline),
-  }));
-}
-
 // Mini area sparkline with gradient fill — matches target mockup style
 function MetricSparkline({ data, color, height = 36, metric, baseline }) {
   const vals = (data || []).slice(-14)
@@ -2713,7 +2666,7 @@ function MetricSparkline({ data, color, height = 36, metric, baseline }) {
   const areaPath = `${linePath} L${xOf(vals.length - 1).toFixed(1)},${H} L0,${H} Z`;
   const gId = `sg${(metric?.key || color).replace(/[^a-z0-9]/gi, '')}${vals.length}`;
   const strokeId = `${gId}stroke`;
-  const stops = gradientStopsForPoints(linePoints, metric, baseline, color);
+  const stops = chartGradientStops(linePoints, metric, baseline, color, C);
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height, display: 'block' }}>
       <defs>
@@ -2729,42 +2682,6 @@ function MetricSparkline({ data, color, height = 36, metric, baseline }) {
       <path d={linePath} fill="none" stroke={`url(#${strokeId})`} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
-}
-
-function metricStatusColor(metric, value, baseline) {
-  if (!Number.isFinite(value) || !baseline) return metric?.color || C.blue;
-  if (metric?.key === 'activeCal') {
-    if (value < baseline * 0.75) return '#45a8f5';
-    if (value <= baseline * 1.15) return C.green;
-    if (value <= baseline * 1.45) return C.amber;
-    return C.purple;
-  }
-  if (metric?.key === 'steps' && metric?.target) {
-    if (value >= metric.target) return C.green;
-    if (value >= metric.target * 0.8) return '#45a8f5';
-    if (value >= metric.target * 0.6) return '#f4d735';
-    if (value >= metric.target * 0.35) return '#ff9f1c';
-    return C.red;
-  }
-  if (metric?.higherBetter === true) {
-    if (value >= baseline * 0.97) return C.green;
-    if (value >= baseline * 0.9) return '#45a8f5';
-    if (value >= baseline * 0.84) return '#f4d735';
-    if (value >= baseline * 0.78) return '#ff9f1c';
-    return C.red;
-  }
-  if (metric?.higherBetter === false) {
-    if (value <= baseline * 1.03) return C.green;
-    if (value <= baseline * 1.07) return '#45a8f5';
-    if (value <= baseline * 1.1) return '#f4d735';
-    if (value <= baseline * 1.15) return '#ff9f1c';
-    return C.red;
-  }
-  if (value <= baseline * 1.08) return C.green;
-  if (value <= baseline * 1.15) return '#45a8f5';
-  if (value <= baseline * 1.25) return '#f4d735';
-  if (value <= baseline * 1.4) return '#ff9f1c';
-  return C.red;
 }
 
 function MetricInsightChart({ metric, data, baseline }) {
@@ -2791,7 +2708,7 @@ function MetricInsightChart({ metric, data, baseline }) {
   const smoothPath = smoothLinePath(chartPoints);
   const gradientId = `metricInsight${(metric?.key || 'metric').replace(/[^a-z0-9]/gi, '')}${points.length}`;
   const glowId = `${gradientId}Glow`;
-  const stops = gradientStopsForPoints(chartPoints, metric, baseline, metric?.color || C.blue);
+  const stops = chartGradientStops(chartPoints, metric, baseline, metric?.color || C.blue, C);
   return (
     <div>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 190, display: 'block' }}>
@@ -2825,7 +2742,7 @@ function MetricInsightChart({ metric, data, baseline }) {
         <path d={smoothPath} fill="none" stroke={`url(#${gradientId})`} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" opacity={0.16} filter={`url(#${glowId})`} />
         <path d={smoothPath} fill="none" stroke={`url(#${gradientId})`} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round" />
         {points.map((p, i) => {
-          const color = metricStatusColor(metric, p.value, baseline);
+          const color = metricStatusColor(metric, p.value, baseline, C);
           return <circle key={p.date} cx={xOf(i)} cy={yOf(p.value)} r={4} fill={color} stroke="#fff" strokeWidth={1.5} />;
         })}
         {labelIdx.map(i => (
@@ -2835,7 +2752,7 @@ function MetricInsightChart({ metric, data, baseline }) {
         ))}
       </svg>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: -4 }}>
-        {metricChartColorKey(metric).map(item => (
+        {metricChartColorKey(metric, C).map(item => (
           <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: C.fMono, fontSize: 8, color: C.muted }}>
             <span style={{ width: 8, height: 8, borderRadius: 4, background: item.color, display: 'inline-block' }} />
             {item.label}
@@ -2877,8 +2794,8 @@ function RecoveryTrendChart({ healthData, days }) {
   const rhrSmooth = smoothLinePath(rhrXY);
   const hrvGradientId = `recoveryHrv${days}${hrv.length}`;
   const rhrGradientId = `recoveryRhr${days}${rhr.length}`;
-  const hrvStops = gradientStopsForPoints(hrvXY, hrvMetric, bHRV, C.blue);
-  const rhrStops = gradientStopsForPoints(rhrXY, rhrMetric, bRHR, C.red);
+  const hrvStops = chartGradientStops(hrvXY, hrvMetric, bHRV, C.blue, C);
+  const rhrStops = chartGradientStops(rhrXY, rhrMetric, bRHR, C.red, C);
   const first = [...hrv, ...rhr].map(d => d.date).sort()[0];
   const last  = [...hrv, ...rhr].map(d => d.date).sort().reverse()[0];
   return (
@@ -2897,13 +2814,13 @@ function RecoveryTrendChart({ healthData, days }) {
       {hrvPts.length > 1 && <path d={hrvSmooth} fill="none" stroke={`url(#${hrvGradientId})`} strokeWidth={2.9} strokeLinecap="round" strokeLinejoin="round" />}
       {hrv.map((d, i) => {
         const v = Number(d.value);
-        const col = metricStatusColor(hrvMetric, v, bHRV);
+        const col = metricStatusColor(hrvMetric, v, bHRV, C);
         return <circle key={d.date} cx={xOf(i, hrv.length)} cy={yHRV(v)} r={4} fill={col} />;
       })}
       {rhrPts.length > 1 && <path d={rhrSmooth} fill="none" stroke={`url(#${rhrGradientId})`} strokeWidth={2.9} strokeLinecap="round" strokeLinejoin="round" opacity={0.82} />}
       {rhr.map((d, i) => {
         const v = Number(d.value);
-        const col = metricStatusColor(rhrMetric, v, bRHR);
+        const col = metricStatusColor(rhrMetric, v, bRHR, C);
         return <circle key={d.date} cx={xOf(i, rhr.length)} cy={yRHR(v)} r={4} fill={col} opacity={0.9} />;
       })}
       {/* Axis labels */}
@@ -3658,7 +3575,7 @@ function TrendInsightModal({ healthData, trendDays, onClose }) {
         <div style={{ ...st.label, marginBottom: 8 }}>{trendDays}-day HRV + resting HR</div>
         <RecoveryTrendChart healthData={healthData} days={trendDays} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 3 }}>
-          {chartColorKey().map(item => (
+          {chartColorKey(C).map(item => (
             <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: C.fMono, fontSize: 7, color: C.muted }}>
               <span style={{ width: 7, height: 7, borderRadius: 4, background: item.color, display: 'inline-block' }} />
               {item.label}
@@ -3757,7 +3674,7 @@ function RecoveryTrendCard({ healthData, trendDays, setTrendDays, onTrendTap }) 
       <button onClick={onTrendTap} style={{ border: 'none', background: 'transparent', padding: 0, width: '100%', cursor: 'pointer', textAlign: 'left' }}>
         <RecoveryTrendChart healthData={healthData} days={trendDays} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 3 }}>
-          {chartColorKey().map(item => (
+          {chartColorKey(C).map(item => (
             <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: C.fMono, fontSize: 7, color: C.muted }}>
               <span style={{ width: 7, height: 7, borderRadius: 4, background: item.color, display: 'inline-block' }} />
               {item.label}

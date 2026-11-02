@@ -5,12 +5,14 @@ import session from '../src/domain/session.js';
 import health from '../src/domain/health.js';
 import store from '../src/storage/localStore.js';
 import supabase from '../src/integrations/supabase.js';
+import charts from '../src/ui/charts/metrics.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
 const { mapHealthRows, mergeHealthData } = health;
 const { safeParse, validateBackup } = store;
 const { shouldRestoreCloud } = supabase;
+const { smoothLinePath, metricStatusColor } = charts;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
 
@@ -42,4 +44,12 @@ test('storage helpers reject malformed data without throwing', () => {
   assert.deepEqual(safeParse('{bad json', []), []);
   assert.throws(() => validateBackup({ sessions: {} }), /sessions must be an array/);
   assert.equal(shouldRestoreCloud([1], [1, 2]), true);
+});
+
+test('chart primitives produce smooth paths and meaningful status colours', () => {
+  const C = { blue: '#blue', green: '#green', amber: '#amber', purple: '#purple', red: '#red' };
+  const path = smoothLinePath([{ x: 0, y: 10 }, { x: 10, y: 0 }, { x: 20, y: 10 }]);
+  assert.match(path, /^M0\.0,10\.0 C/);
+  assert.equal(metricStatusColor({ key: 'hrv', higherBetter: true }, 70, 100, C), '#red');
+  assert.equal(metricStatusColor({ key: 'hrv', higherBetter: true }, 100, 100, C), '#green');
 });
