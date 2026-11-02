@@ -2,7 +2,7 @@
 
 A personal fitness tracking Progressive Web App (PWA) built for a specific user — a 51-year-old male returning to strength training after ~5 years off. It is published as a single generated HTML artifact on GitHub Pages, while the source is gradually being split into testable JavaScript modules. Supabase remains the cloud sync backend and React is still loaded from the runtime CDN.
 
-**Live app:** https://lord-buttock.github.io/ironlog
+**Live app:** https://filippo-cantone.github.io/ironlog
 
 ---
 
