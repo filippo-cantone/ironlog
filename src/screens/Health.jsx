@@ -59,12 +59,14 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
     setImportResult('');
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     try {
       const parsed = JSON.parse(importText);
       const incoming = normaliseHealthReadings(parsed);
-      setHealthData(prev => ({ ...prev, [importMetric.key]: mergeHealthReadings(prev[importMetric.key], incoming) }));
-      setImportResult(`${incoming.length} readings imported`);
+      const merged = { ...healthData, [importMetric.key]: mergeHealthReadings(healthData[importMetric.key], incoming) };
+      setHealthData(merged);
+      const sync = await pushHealthMetrics?.(merged);
+      setImportResult(sync?.ok ? `${incoming.length} readings imported — cloud sync confirmed` : `${incoming.length} readings imported locally — cloud sync needs attention`);
       setImportError('');
       setImportText('');
     } catch (e) {
@@ -73,26 +75,25 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
     }
   }
 
-  function confirmBulkImport() {
+  async function confirmBulkImport() {
     try {
       const parsed = JSON.parse(bulkText);
       const bulk = parseHealthAutoExport(parsed);
       if (!bulk) throw new Error('Not a Health Auto Export JSON file. Expected {"data":{"metrics":[...]}}.');
       const counts = {};
-      let merged;
-      setHealthData(prev => {
-        const next = { ...prev };
-        Object.entries(bulk).forEach(([key, entries]) => {
-          next[key] = mergeHealthReadings(prev[key], entries);
-          counts[key] = entries.length;
-        });
-        merged = next;
+      const merged = Object.entries(bulk).reduce((next, [key, entries]) => {
+        next[key] = mergeHealthReadings(next[key], entries);
+        counts[key] = entries.length;
         return next;
-      });
-      // Push to Supabase so it auto-loads next time (fire and forget)
-      if (merged) pushHealthMetrics(merged);
+      }, { ...healthData });
+      setHealthData(merged);
+      const sync = await pushHealthMetrics?.(merged);
       const summary = Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(', ');
-      setBulkResult(`Imported: ${summary} — synced to cloud`);
+      if (sync?.ok) {
+        setBulkResult(`Imported: ${summary} — cloud sync confirmed`);
+      } else {
+        setBulkResult(`Imported locally: ${summary} — cloud sync needs attention${sync?.error ? ` (${sync.error})` : ''}`);
+      }
       setBulkError('');
       setBulkText('');
     } catch (e) {

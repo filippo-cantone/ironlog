@@ -43,7 +43,17 @@ function mergeHealthData(cloud, local) {
   return HEALTH_KEYS.reduce((result, key) => {
     const cloudValues = Array.isArray(cloudData[key]) ? cloudData[key] : [];
     const localValues = Array.isArray(localData[key]) ? localData[key] : [];
-    result[key] = cloudValues.length ? cloudValues : localValues;
+    // Keep the union of both stores. A manual Health Auto Export can be newer
+    // than the last cloud upload, so local readings must not be discarded just
+    // because Supabase already has an older non-empty array.
+    const byDate = new Map();
+    [...cloudValues, ...localValues].forEach(reading => {
+      const date = typeof reading?.date === 'string' ? reading.date.slice(0, 10) : '';
+      const value = Number(reading?.value);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(value)) return;
+      byDate.set(date, { ...reading, date, value });
+    });
+    result[key] = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
     return result;
   }, {});
 }

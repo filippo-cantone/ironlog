@@ -436,7 +436,7 @@ async function pullWatchWorkouts() {
 }
 
 async function pushHealthMetrics(healthData) {
-  if (!db) return;
+  if (!db) return { ok: false, error: 'Cloud sync is unavailable.' };
   try {
     const keyMap = {
       hrv: 'hrv', restingHr: 'resting_hr', steps: 'steps', activeCal: 'active_cal', cardio: 'cardio', sleep: 'sleep', bloodOxygen: 'blood_oxygen', weight: 'weight',
@@ -452,9 +452,17 @@ async function pushHealthMetrics(healthData) {
         }
       });
     });
-    if (!rows.length) return;
-    await db.from('health_metrics').upsert(rows, { onConflict: 'metric,date' });
-  } catch (e) { console.warn('IronLog sync (health):', e); }
+    if (!rows.length) return { ok: false, error: 'No valid health readings were found.' };
+    const { error } = await db.from('health_metrics').upsert(rows, { onConflict: 'metric,date' });
+    if (error) {
+      console.warn('IronLog sync (health):', error);
+      return { ok: false, error: error.message || 'Supabase rejected the health readings.' };
+    }
+    return { ok: true, count: rows.length };
+  } catch (e) {
+    console.warn('IronLog sync (health):', e);
+    return { ok: false, error: e?.message || 'Health cloud sync failed.' };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -916,17 +924,28 @@ const HEALTH_EXPORT_MAP = {
   sleep_efficiency:       'sleepEfficiency',
 };
 
-function healthExportValue(metricName, entry) {
+function sleepHours(value, units = '') {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const unit = String(units || '').toLowerCase();
+  if (unit.includes('sec')) return n / 3600;
+  if (unit.includes('min')) return n / 60;
+  // Some exports omit units on stage rows. Hour values are normally below 24;
+  // larger values are almost certainly minutes.
+  return n > 24 ? n / 60 : n;
+}
+
+function healthExportValue(metricName, entry, units = '') {
   if (['sleep_analysis', 'sleep', 'sleep_deep', 'sleep_rem', 'sleep_core', 'sleep_awake', 'sleep_in_bed', 'sleep_efficiency'].includes(metricName)) {
-    if (metricName === 'sleep_deep') return Number(entry.deep);
-    if (metricName === 'sleep_rem') return Number(entry.rem);
-    if (metricName === 'sleep_core') return Number(entry.core);
-    if (metricName === 'sleep_awake') return Number(entry.awake);
-    if (metricName === 'sleep_in_bed') return Number(entry.inBed);
+    if (metricName === 'sleep_deep') return sleepHours(entry.deep, units);
+    if (metricName === 'sleep_rem') return sleepHours(entry.rem, units);
+    if (metricName === 'sleep_core') return sleepHours(entry.core, units);
+    if (metricName === 'sleep_awake') return sleepHours(entry.awake, units);
+    if (metricName === 'sleep_in_bed') return sleepHours(entry.inBed, units);
     if (metricName === 'sleep_efficiency') {
-      const total = Number(entry.totalSleep ?? entry.asleep);
-      const awake = Number(entry.awake);
-      const inBed = Number(entry.inBed);
+      const total = sleepHours(entry.totalSleep ?? entry.asleep, units);
+      const awake = sleepHours(entry.awake, units);
+      const inBed = sleepHours(entry.inBed, units);
       const denominator = Number.isFinite(inBed) && inBed > 0
         ? inBed
         : (Number.isFinite(total) && Number.isFinite(awake) ? total + awake : null);
@@ -934,10 +953,10 @@ function healthExportValue(metricName, entry) {
     }
     const direct = [entry.totalSleep, entry.asleep, entry.sleep, entry.duration, entry.qty];
     for (const candidate of direct) {
-      const n = Number(candidate);
+      const n = sleepHours(candidate, units);
       if (Number.isFinite(n) && n > 0) return n;
     }
-    const stages = Number(entry.core || 0) + Number(entry.deep || 0) + Number(entry.rem || 0);
+    const stages = (sleepHours(entry.core, units) || 0) + (sleepHours(entry.deep, units) || 0) + (sleepHours(entry.rem, units) || 0);
     return stages > 0 ? stages : null;
   }
 
@@ -962,12 +981,23 @@ function expandSleepExportMetric(metric) {
 }
 
 function combineHealthExportEntries(metricName, entries) {
-  if (!entries.length || !['sleep_analysis', 'sleep'].includes(metricName)) return entries;
+  const sleepMetrics = ['sleep_analysis', 'sleep', 'sleep_deep', 'sleep_rem', 'sleep_core', 'sleep_awake', 'sleep_in_bed', 'sleep_efficiency'];
+  if (!entries.length || !sleepMetrics.includes(metricName)) return entries;
   const byDate = {};
   entries.forEach(entry => {
-    byDate[entry.date] = { date: entry.date, value: Math.round(((byDate[entry.date]?.value || 0) + Number(entry.value)) * 10) / 10 };
+    const current = byDate[entry.date];
+    if (metricName === 'sleep_efficiency') {
+      const count = current?.count || 0;
+      byDate[entry.date] = {
+        date: entry.date,
+        value: Math.round((((current?.value || 0) * count) + Number(entry.value)) / (count + 1) * 10) / 10,
+        count: count + 1,
+      };
+    } else {
+      byDate[entry.date] = { date: entry.date, value: Math.round(((current?.value || 0) + Number(entry.value)) * 10) / 10 };
+    }
   });
-  return Object.values(byDate);
+  return Object.values(byDate).map(({ date, value }) => ({ date, value }));
 }
 
 function parseHealthAutoExport(parsed) {
@@ -981,7 +1011,7 @@ function parseHealthAutoExport(parsed) {
       .map(entry => {
         const date = typeof entry.date === 'string' ? entry.date.slice(0, 10) : '';
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-        const value = healthExportValue(metric.name, entry);
+        const value = healthExportValue(metric.name, entry, metric.units);
         if (!Number.isFinite(value)) return null;
         return { date, value: Math.round(value * 10) / 10 };
       })

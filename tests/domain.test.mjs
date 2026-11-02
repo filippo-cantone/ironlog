@@ -48,7 +48,7 @@ test('session migration creates resumable metadata and preserves set timing', ()
   assert.equal(completed.exercises[0].sets[0].done, true);
 });
 
-test('health mapping preserves cardio and merges cloud over local when present', () => {
+test('health mapping preserves cardio and merges cloud/local readings by date', () => {
   const cloud = mapHealthRows([
     { metric: 'cardio', date: '2026-11-02', value: 42 },
     { metric: 'hrv', date: '2026-11-02', value: 31 },
@@ -58,12 +58,23 @@ test('health mapping preserves cardio and merges cloud over local when present',
     { metric: 'sleep_deep', date: '2026-11-02', value: 1.2 },
   ]);
   const merged = mergeHealthData(cloud, { cardio: [{ date: '2026-11-01', value: 40 }] });
-  assert.deepEqual(merged.cardio, [{ date: '2026-11-02', value: 42 }]);
+  assert.deepEqual(merged.cardio, [
+    { date: '2026-11-01', value: 40 },
+    { date: '2026-11-02', value: 42 },
+  ]);
   assert.deepEqual(merged.hrv, [{ date: '2026-11-02', value: 31 }]);
   assert.deepEqual(merged.restingHr, [{ date: '2026-11-02', value: 76 }]);
   assert.deepEqual(merged.bloodOxygen, [{ date: '2026-11-02', value: 97 }]);
   assert.deepEqual(merged.sleep, [{ date: '2026-11-02', value: 7.8 }]);
   assert.deepEqual(merged.sleepDeep, [{ date: '2026-11-02', value: 1.2 }]);
+  const localNewer = mergeHealthData(
+    { hrv: [{ date: '2026-11-02', value: 22 }] },
+    { hrv: [{ date: '2026-11-02', value: 19 }, { date: '2026-11-03', value: 18 }] },
+  );
+  assert.deepEqual(localNewer.hrv, [
+    { date: '2026-11-02', value: 19 },
+    { date: '2026-11-03', value: 18 },
+  ]);
 });
 
 test('sleep profile reports duration, efficiency, stages, and awake time without inventing a score', () => {

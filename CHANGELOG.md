@@ -2,6 +2,13 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-03 — Apple Health freshness and ingestion audit (Codex)
+
+- Fixed [BUG-013](BUGS.md): local Health Auto Export readings now merge with Supabase by date, preserving newer imports and using the local value for same-day conflicts
+- Health imports now confirm the Supabase upsert instead of always displaying “synced to cloud” after a local-only import
+- Hardened local and deployed `ingest-health` parsing for separate sleep-stage blocks and minute/second stage units; verified the deployed dry-run returns 6.6 h asleep, 0.6 h deep, 1.3 h REM, 4.8 h core, 0.5 h awake, and 92.8% efficiency for a representative export
+- Audited all stored metrics: steps, HRV, resting HR, active calories, and blood oxygen currently reach 2 November; cardio reaches 24 October; the latest server capture had no sleep block, so sleep cannot update until Sleep is included in the Health Auto Export configuration
+
 ## 2026-11-02 — Science-first readiness and weekly AI review fix (Codex)
 
 - Replaced the unvalidated 0–100 recovery headline with transparent Apple Health SDNN HRV-led readiness: seven-day rolling trend, personal baseline, smallest-worthwhile-change band, confidence, and explicit “Building baseline” state

@@ -4,9 +4,12 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
-### Apple Health freshness audit — in progress — Codex — 2026-11-03
-- Audit local import, Supabase restore, and Health Auto Export ingestion for stale or missing readings across all metrics.
-- Make cloud-sync failures visible and preserve newer local imports during cloud restore.
+### Apple Health freshness audit — complete — Codex — 2026-11-03
+- ✅ Audited current Supabase dates and values for every stored Health metric and identified the missing sleep block in the latest server capture.
+- ✅ Local/cloud health restore now merges readings by date, and local imported values win same-day conflicts.
+- ✅ Health imports report the actual cloud upsert result instead of claiming success unconditionally.
+- ✅ Deployed `ingest-health` v13 with separate sleep-stage aliases and defensive time-unit normalisation; dry-run verified sleep totals and efficiency.
+- 🔄 Phill needs to include Sleep in the Health Auto Export metric selection and run one fresh export so the server receives the missing night.
 
 ### Activity and Health Goals — complete — Codex — 2026-11-02
 - ✅ Added Apple Health / Apple Watch activity points with measured Watch intensity first and labelled heart-rate estimates when samples and a personal max-HR setting are available.

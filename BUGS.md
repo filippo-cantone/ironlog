@@ -14,6 +14,11 @@ Format for commits: `Fix BUG-NNN: short description`
 
 ## Fixed
 
+### BUG-013 [FIXED] New Apple Health imports were hidden by stale cloud data
+**Fixed:** 2026-11-03 by Codex
+**Detail:** Startup used any non-empty Supabase metric array in preference to local data, so newer local exports could disappear after reload. Bulk and single-metric imports also reported cloud sync success without checking the Supabase response.
+**Fix applied:** Health data now merges cloud and local readings by date, with the local import winning on duplicate dates. Health imports await the upsert and report whether cloud sync was confirmed. The deployed `ingest-health` function now accepts separate sleep-stage blocks and normalises hour/minute/second units safely.
+
 ### BUG-011 [FIXED] Weekly AI review hid useful service failure detail
 **Fixed:** 2026-11-02 by Codex
 **Detail:** Weekly review failures were shown only as a generic “non-2xx status code”, and the full history context could exceed a provider's request limit.
