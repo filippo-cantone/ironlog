@@ -13,7 +13,7 @@ import workoutData from './data/workouts.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
-const { emptyHealthData, mergeHealthData } = healthDomain;
+const { emptyHealthData, mergeHealthData, computeSleepScore: computeSleepScoreDomain, computeRecovery: computeRecoveryDomain } = healthDomain;
 const { safeParse, validateBackup } = storageDomain;
 const { shouldRestoreCloud } = syncDomain;
 const { C, st, dash } = theme;
@@ -1835,7 +1835,7 @@ function scoreSleepComponent(value, target, spread, higherBetter = true) {
   return clamp(75 + (delta / spread) * 15, 0, 100);
 }
 
-function computeSleepScore(healthData) {
+function legacyComputeSleepScore(healthData) {
   const total = healthData?.sleep || [];
   const latest = getLatestReading(total);
   if (!latest) return null;
@@ -1898,7 +1898,7 @@ function computeSleepScore(healthData) {
 //
 //   WITH sleep:    HRV 40% + RHR 30% + Sleep 30%  (matches Oura/WHOOP weighting)
 //   WITHOUT sleep: HRV 70% + RHR 30%              (estimate only)
-function computeRecovery(healthData) {
+function legacyComputeRecovery(healthData) {
   const hrv   = healthData?.hrv       || [];
   const rhr   = healthData?.restingHr || [];
   const slp   = healthData?.sleep     || [];
@@ -2065,6 +2065,11 @@ function computeTrendInsight(healthData) {
   if (hrvOk && !rhrOk)  return 'Resting HR is elevated. Listen to your body and consider reducing intensity.';
   return 'HRV is below average and resting HR is elevated. Consider lighter movement or a recovery day.';
 }
+
+// Recovery and sleep scoring now come from the pure domain module. The legacy
+// implementations above remain temporarily as migration reference code.
+const computeSleepScore = computeSleepScoreDomain;
+const computeRecovery = computeRecoveryDomain;
 
 function summarizeWatchEffort(watchData) {
   const matches = watchData?.matches || [];

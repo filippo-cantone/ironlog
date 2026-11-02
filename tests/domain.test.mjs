@@ -10,7 +10,7 @@ import workoutData from '../src/data/workouts.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
-const { mapHealthRows, mergeHealthData } = health;
+const { mapHealthRows, mergeHealthData, computeSleepScore, classifyHealthTrend } = health;
 const { safeParse, validateBackup } = store;
 const { shouldRestoreCloud } = supabase;
 const { smoothLinePath, metricStatusColor } = charts;
@@ -39,6 +39,28 @@ test('health mapping preserves cardio and merges cloud over local when present',
   const cloud = mapHealthRows([{ metric: 'cardio', date: '2026-11-02', value: 42 }]);
   const merged = mergeHealthData(cloud, { cardio: [{ date: '2026-11-01', value: 40 }] });
   assert.deepEqual(merged.cardio, [{ date: '2026-11-02', value: 42 }]);
+});
+
+test('sleep score uses duration, efficiency, stages, and awake time', () => {
+  const data = {
+    sleep: [{ date: '2026-11-02', value: 7.9 }],
+    sleepInBed: [{ date: '2026-11-02', value: 8.1 }],
+    sleepDeep: [{ date: '2026-11-02', value: 1.1 }],
+    sleepRem: [{ date: '2026-11-02', value: 1.7 }],
+    sleepCore: [{ date: '2026-11-02', value: 5.1 }],
+    sleepAwake: [{ date: '2026-11-02', value: 0.1 }],
+    sleepEfficiency: [{ date: '2026-11-02', value: 98 }],
+  };
+  const score = computeSleepScore(data);
+  assert.equal(score.totalSleep, 7.9);
+  assert.equal(score.efficiency, 98);
+  assert.equal(score.deep, 1.1);
+  assert.equal(score.rem, 1.7);
+  assert.equal(score.awake, 0.1);
+  assert.equal(score.hasStages, true);
+  assert.ok(score.score >= 60);
+  assert.equal(classifyHealthTrend(17, 20, true), 'strained');
+  assert.equal(classifyHealthTrend(82, 80, false), 'good');
 });
 
 test('storage helpers reject malformed data without throwing', () => {
