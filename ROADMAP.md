@@ -4,6 +4,10 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
+### Activity and Health Goals — in progress — Codex
+- Add Google Fit-inspired activity points, weekly goals, workout summaries, sleep timeline, weight/health trends, and deterministic goal coaching using Apple Health and Apple Watch data.
+- Keep activity points separate from HRV-led readiness and medical-safety decisions.
+
 ### Science-first readiness + weekly AI fix — complete — Codex — 2026-11-02
 - ✅ Replaced the unvalidated composite recovery score with an Apple Health SDNN HRV-led readiness protocol.
 - ✅ Kept sleep, resting HR, training load, RPE, pain, and Watch effort as transparent context signals.
