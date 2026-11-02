@@ -3338,8 +3338,8 @@ function SetRow({ num, set, def, onUpdate, onStart, onDone, nowMs }) {
         </select>
 
         <button onClick={done ? undefined : started ? onDone : onStart} disabled={done} aria-label={done ? `Set ${num} completed` : started ? `Finish set ${num}` : `Start set ${num}`} style={{
-          background: done ? C.green : started ? C.blue : C.amber,
-          border: `2px solid ${done ? C.green : started ? C.blue : C.amber}`,
+          background: done ? C.green : started ? C.green : C.blue,
+          border: `2px solid ${done ? C.green : started ? C.green : C.blue}`,
           borderRadius: 4,
           padding: '6px 0', minHeight: 36,
           cursor: done ? 'default' : 'pointer', fontSize: 11, width: '100%',

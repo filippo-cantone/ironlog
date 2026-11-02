@@ -2,6 +2,10 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-03 — Distinguish the active Done state (Codex)
+
+- Corrected the workout set control so the button turns green immediately when `Start` is tapped and changes to `Done`, rather than only changing colour after the set is completed
+
 ## 2026-11-03 — Clear completed-set button state (Codex)
 
 - Made completed workout sets use a strong green `✓ Done` button with a visible border and success shadow, clearly distinct from the blue `Start`/running state for easier use without glasses
