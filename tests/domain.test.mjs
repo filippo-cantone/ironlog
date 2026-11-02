@@ -7,6 +7,7 @@ import store from '../src/storage/localStore.js';
 import supabase from '../src/integrations/supabase.js';
 import charts from '../src/ui/charts/metrics.js';
 import workoutData from '../src/data/workouts.js';
+import importExport from '../src/storage/importExport.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
@@ -70,6 +71,9 @@ test('storage helpers reject malformed data without throwing', () => {
   assert.equal(compareSyncRecords([{ id: 'a', date: '2026-11-01' }], [{ id: 'b', updated_at: '2026-11-02' }]), 'cloud-newer');
   assert.equal(shouldRestoreCloud([{ id: 'a', date: '2026-11-01' }], [{ id: 'b', updated_at: '2026-11-02' }]), true);
   assert.equal(compareSyncRecords([{ id: 'a', date: '2026-11-03' }], [{ id: 'b', updated_at: '2026-11-02' }]), 'local-newer');
+  assert.throws(() => validateBackup({ version: 99 }), /unsupported version/);
+  assert.throws(() => validateBackup({ sessions: [null] }), /each session/);
+  assert.equal(importExport.createBackup({ sessions: null }).sessions.length, 0);
 });
 
 test('chart primitives produce smooth paths and meaningful status colours', () => {

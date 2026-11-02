@@ -97,7 +97,7 @@ ironlog/
 │   ├── screens/             ← extracted Progress and Rides screens (more to follow)
 │   ├── data/workouts.js     ← canonical A/B/C and Iron Series programmes
 │   ├── domain/              ← pure session, health, progression logic (including sleep/recovery scoring)
-│   ├── storage/             ← validated persistence and backup helpers
+│   ├── storage/             ← validated persistence and backup/import helpers
 │   └── integrations/        ← Supabase response and sync helpers
 ├── dist/
 │   └── index.html           ← compiled output, deployed to GitHub Pages

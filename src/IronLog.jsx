@@ -10,6 +10,7 @@ import Nav from './ui/Nav.jsx';
 import ProgressScreen from './screens/Progress.jsx';
 import RidesScreen from './screens/Rides.jsx';
 import workoutData from './data/workouts.js';
+import importExportDomain from './storage/importExport.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
@@ -19,6 +20,7 @@ const { shouldRestoreCloud } = syncDomain;
 const { C, st, dash } = theme;
 const { smoothLinePath, chartColorKey, metricChartColorKey, metricStatusColor, gradientStopsForPoints: chartGradientStops } = chartDomain;
 const { WORKOUTS, IRON_WORKOUTS } = workoutData;
+const { downloadBackup, readBackup } = importExportDomain;
 
 // ═══════════════════════════════════════════════════════════════════════
 // THEME
@@ -1660,7 +1662,7 @@ function HealthBarChart({ data, metric, height = 136, trainedDates }) {
 // ═══════════════════════════════════════════════════════════════════════
 // DATA EXPORT / IMPORT  (JSON file — works on any device, any host)
 // ═══════════════════════════════════════════════════════════════════════
-function exportData(data) {
+function legacyExportData(data) {
   const payload = JSON.stringify({
     version: 2,
     exportedAt: new Date().toISOString(),
@@ -1678,7 +1680,7 @@ function exportData(data) {
   URL.revokeObjectURL(url);
 }
 
-function importData(file) {
+function legacyImportData(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
@@ -1689,6 +1691,9 @@ function importData(file) {
     reader.readAsText(file);
   });
 }
+
+const exportData = downloadBackup;
+const importData = readBackup;
 
 
 function FontLoader() {

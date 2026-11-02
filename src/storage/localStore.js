@@ -27,10 +27,21 @@ function loadObject(key, fallback = {}, storage = globalThis.localStorage) {
 
 function validateBackup(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid backup: expected an object.');
+  if (data.version !== undefined && (!Number.isInteger(data.version) || data.version < 1 || data.version > BACKUP_SCHEMA_VERSION)) {
+    throw new Error(`Invalid backup: unsupported version ${data.version}.`);
+  }
   if (data.sessions !== undefined && !Array.isArray(data.sessions)) throw new Error('Invalid backup: sessions must be an array.');
   if (data.rides !== undefined && !Array.isArray(data.rides)) throw new Error('Invalid backup: rides must be an array.');
   if (data.customExercises !== undefined && (!data.customExercises || typeof data.customExercises !== 'object' || Array.isArray(data.customExercises))) {
     throw new Error('Invalid backup: customExercises must be an object.');
+  }
+  for (const key of ['workoutCustom', 'workoutHidden']) {
+    if (data[key] !== undefined && (!data[key] || typeof data[key] !== 'object' || Array.isArray(data[key]))) {
+      throw new Error(`Invalid backup: ${key} must be an object.`);
+    }
+  }
+  if (data.sessions?.some(session => !session || typeof session !== 'object' || Array.isArray(session))) {
+    throw new Error('Invalid backup: each session must be an object.');
   }
   return { ...data, schemaVersion: BACKUP_SCHEMA_VERSION };
 }
