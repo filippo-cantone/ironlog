@@ -11,7 +11,7 @@ import importExport from '../src/storage/importExport.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
-const { mapHealthRows, mergeHealthData, computeSleepScore, classifyHealthTrend } = health;
+const { mapHealthRows, mergeHealthData, computeSleepProfile, computeReadiness, classifyHealthTrend } = health;
 const { safeParse, validateBackup } = store;
 const { shouldRestoreCloud, compareSyncRecords } = supabase;
 const { smoothLinePath, metricStatusColor } = charts;
@@ -61,7 +61,7 @@ test('health mapping preserves cardio and merges cloud over local when present',
   assert.deepEqual(merged.sleepDeep, [{ date: '2026-11-02', value: 1.2 }]);
 });
 
-test('sleep score uses duration, efficiency, stages, and awake time', () => {
+test('sleep profile reports duration, efficiency, stages, and awake time without inventing a score', () => {
   const data = {
     sleep: [{ date: '2026-11-02', value: 7.9 }],
     sleepInBed: [{ date: '2026-11-02', value: 8.1 }],
@@ -71,16 +71,33 @@ test('sleep score uses duration, efficiency, stages, and awake time', () => {
     sleepAwake: [{ date: '2026-11-02', value: 0.1 }],
     sleepEfficiency: [{ date: '2026-11-02', value: 98 }],
   };
-  const score = computeSleepScore(data);
-  assert.equal(score.totalSleep, 7.9);
-  assert.equal(score.efficiency, 98);
-  assert.equal(score.deep, 1.1);
-  assert.equal(score.rem, 1.7);
-  assert.equal(score.awake, 0.1);
-  assert.equal(score.hasStages, true);
-  assert.ok(score.score >= 60);
+  const profile = computeSleepProfile(data);
+  assert.equal(profile.totalSleep, 7.9);
+  assert.equal(profile.efficiency, 98);
+  assert.equal(profile.deep, 1.1);
+  assert.equal(profile.rem, 1.7);
+  assert.equal(profile.awake, 0.1);
+  assert.equal(profile.hasStages, true);
+  assert.equal(profile.durationStatus, 'meets the 7-hour minimum');
+  assert.equal(profile.score, undefined);
   assert.equal(classifyHealthTrend(17, 20, true), 'strained');
   assert.equal(classifyHealthTrend(82, 80, false), 'good');
+});
+
+test('readiness uses an Apple SDNN HRV baseline band and reports sparse data honestly', () => {
+  const baseline = Array.from({ length: 14 }, (_, index) => ({
+    date: `2026-10-${String(index + 1).padStart(2, '0')}`,
+    value: index % 2 ? 31 : 29,
+  }));
+  const rolling = Array.from({ length: 7 }, (_, index) => ({
+    date: `2026-11-${String(index + 1).padStart(2, '0')}`,
+    value: 20,
+  }));
+  const readiness = computeReadiness({ hrv: [...baseline, ...rolling] });
+  assert.equal(readiness.hrvMetric, 'Apple Health SDNN');
+  assert.equal(readiness.status, 'suppressed');
+  assert.equal(readiness.score, undefined);
+  assert.equal(computeReadiness({ hrv: rolling }).status, 'insufficient');
 });
 
 test('storage helpers reject malformed data without throwing', () => {

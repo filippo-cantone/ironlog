@@ -66,13 +66,7 @@ function rollingAverage(readings = [], days = 14) {
   return recent.reduce((sum, reading) => sum + Number(reading.value), 0) / recent.length;
 }
 
-function scoreComponent(value, target, spread, higherBetter = true, neutral = 75) {
-  if (!Number.isFinite(value) || !Number.isFinite(target) || !Number.isFinite(spread) || spread <= 0) return neutral;
-  const delta = higherBetter ? value - target : target - value;
-  return Math.max(0, Math.min(100, neutral + (delta / spread) * 15));
-}
-
-function computeSleepScore(healthData) {
+function computeSleepProfile(healthData) {
   const total = healthData?.sleep || [];
   const latest = latestReading(total);
   if (!latest) return null;
@@ -89,18 +83,12 @@ function computeSleepScore(healthData) {
   const efficiency = Number.isFinite(exportedEfficiency)
     ? exportedEfficiency
     : (Number.isFinite(inferredInBed) && inferredInBed > 0 ? (totalSleep / inferredInBed) * 100 : null);
-  const average = values => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-  const total7 = lastNDaysReadings(total, 7).map(reading => Number(reading.value)).filter(Number.isFinite);
-  const deep7 = lastNDaysReadings(healthData?.sleepDeep || [], 7).map(reading => Number(reading.value)).filter(Number.isFinite);
-  const rem7 = lastNDaysReadings(healthData?.sleepRem || [], 7).map(reading => Number(reading.value)).filter(Number.isFinite);
-  const totalScore = scoreComponent(totalSleep, total7.length >= 3 ? average(total7) : 7.5, 1.5);
-  const efficiencyScore = Number.isFinite(efficiency) ? scoreComponent(efficiency, 88, 8) : 75;
-  const deepScore = Number.isFinite(deep) ? scoreComponent(deep, deep7.length >= 3 ? average(deep7) : 1.1, 0.45) : 75;
-  const remScore = Number.isFinite(rem) ? scoreComponent(rem, rem7.length >= 3 ? average(rem7) : 1.5, 0.55) : 75;
-  const awakeScore = Number.isFinite(awake) ? scoreComponent(awake, 0.6, 0.45, false) : 75;
-  const score = Math.round(Math.max(0, Math.min(100, totalScore * 0.35 + efficiencyScore * 0.2 + deepScore * 0.2 + remScore * 0.15 + awakeScore * 0.1)));
-  const label = score >= 60 ? 'Good' : score >= 38 ? 'Fair' : 'Low';
-  const color = score >= 60 ? '#1f9d8a' : score >= 38 ? '#5b9df5' : '#dc5252';
+  const durationStatus = Number.isFinite(totalSleep)
+    ? totalSleep >= 7 ? 'meets the 7-hour minimum' : 'below the 7-hour minimum'
+    : 'not available';
+  const efficiencyStatus = Number.isFinite(efficiency)
+    ? efficiency >= 85 ? 'sleep was mostly continuous' : 'sleep was more interrupted'
+    : 'not available';
   const parts = [
     Number.isFinite(totalSleep) ? `${Math.round(totalSleep * 10) / 10} h asleep` : null,
     Number.isFinite(deep) ? `${Math.round(deep * 10) / 10} h deep` : null,
@@ -108,44 +96,90 @@ function computeSleepScore(healthData) {
     Number.isFinite(awake) ? `${Math.round(awake * 10) / 10} h awake` : null,
   ].filter(Boolean);
   return {
-    date, score, label, color, totalSleep, inBed, deep, rem, core, awake, efficiency,
-    components: { totalScore, efficiencyScore, deepScore, remScore, awakeScore },
+    date, totalSleep, inBed, deep, rem, core, awake, efficiency,
+    durationStatus, efficiencyStatus,
     summary: parts.join(' · '),
     hasStages: [deep, rem, core, awake, inBed, efficiency].some(Number.isFinite),
   };
 }
 
-function computeRecovery(healthData) {
+function dateAtMidnight(value) {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function readingsBetween(readings = [], start, end) {
+  return readings.filter(reading => {
+    const date = dateAtMidnight(reading?.date);
+    return date && date >= start && date <= end && Number.isFinite(Number(reading.value));
+  });
+}
+
+function mean(values) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function standardDeviation(values, average) {
+  if (!values.length || !Number.isFinite(average)) return null;
+  return Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length);
+}
+
+function contextBand(readings, latestDate, lowerIsBetter = false) {
+  if (!readings.length || !latestDate) return null;
+  const latestDay = dateAtMidnight(latestDate);
+  const rollingStart = new Date(latestDay.getTime() - 6 * 86400000);
+  const baselineEnd = new Date(rollingStart.getTime() - 86400000);
+  const baselineStart = new Date(baselineEnd.getTime() - 59 * 86400000);
+  const rolling = readingsBetween(readings, rollingStart, latestDay).map(row => Number(row.value));
+  const baseline = readingsBetween(readings, baselineStart, baselineEnd).map(row => Number(row.value));
+  const rollingMean = mean(rolling);
+  const baselineMean = mean(baseline);
+  const baselineSd = standardDeviation(baseline, baselineMean);
+  const enough = rolling.length >= 3 && baseline.length >= 14 && Number.isFinite(baselineSd) && baselineSd > 0;
+  if (!enough) return {
+    status: 'insufficient', statusLabel: 'Building baseline', rolling, baseline,
+    rollingMean, baselineMean, baselineSd, lower: null, upper: null,
+  };
+  const lower = baselineMean - baselineSd * 0.5;
+  const upper = baselineMean + baselineSd * 0.5;
+  const value = rollingMean;
+  let status;
+  if (lowerIsBetter) status = value > upper ? 'elevated' : value < lower ? 'lower' : 'usual';
+  else status = value < lower ? 'suppressed' : value > upper ? 'elevated' : 'usual';
+  return {
+    status,
+    statusLabel: status === 'suppressed' ? 'Meaningfully suppressed'
+      : status === 'elevated' ? 'Meaningfully elevated'
+        : status === 'lower' ? 'Lower than usual' : 'Within usual range',
+    rolling, baseline, rollingMean, baselineMean, baselineSd, lower, upper,
+  };
+}
+
+function computeReadiness(healthData) {
   const hrv = healthData?.hrv || [];
   const rhr = healthData?.restingHr || [];
-  const sleep = healthData?.sleep || [];
-  const sleepScore = computeSleepScore(healthData);
-  const todayHRV = Number(latestReading(hrv)?.value) || 0;
-  const todayRHR = Number(latestReading(rhr)?.value) || 0;
-  const todaySleep = Number(latestReading(sleep)?.value) || 0;
-  const hrv7 = lastNDaysReadings(hrv, 7).map(reading => Number(reading.value));
-  const rhr7 = lastNDaysReadings(rhr, 7).map(reading => Number(reading.value));
-  if (hrv7.length < 3 || rhr7.length < 3 || !todayHRV || !todayRHR) return null;
-  const average = values => values.reduce((sum, value) => sum + value, 0) / values.length;
-  const deviation = (values, mean) => Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length);
-  const meanHRV = average(hrv7); const sdHRV = deviation(hrv7, meanHRV) || meanHRV * 0.1;
-  const meanRHR = average(rhr7); const sdRHR = deviation(rhr7, meanRHR) || meanRHR * 0.1;
-  const zHRV = (todayHRV - meanHRV) / sdHRV;
-  const zRHR = (meanRHR - todayRHR) / sdRHR;
-  const hasSleep = !!sleepScore && todaySleep > 0;
-  const zCombined = hasSleep
-    ? zHRV * 0.4 + zRHR * 0.3 + ((sleepScore.score - 75) / 15) * 0.3
-    : zHRV * 0.7 + zRHR * 0.3;
-  const score = Math.round(Math.max(0, Math.min(100, 50 + zCombined * 15)));
-  const color = score >= 60 ? '#1f9d8a' : score >= 38 ? '#5b9df5' : '#dc5252';
+  const latestDate = latestReading(hrv)?.date || latestReading(rhr)?.date || null;
+  const hrvBand = contextBand(hrv, latestDate, false);
+  const rhrBand = contextBand(rhr, latestDate, true);
+  const sleep = computeSleepProfile(healthData);
+  const baselinePoints = hrvBand?.baseline?.length || 0;
+  const rollingPoints = hrvBand?.rolling?.length || 0;
+  const status = hrvBand?.status || 'insufficient';
+  const confidence = status === 'insufficient' ? 'low'
+    : baselinePoints >= 30 && rollingPoints >= 5 ? 'high' : 'medium';
+  const color = status === 'suppressed' ? '#dc5252' : status === 'insufficient' ? '#5b9df5' : '#1f9d8a';
+  const latestHrv = latestReading(hrv);
+  const latestRhr = latestReading(rhr);
   return {
-    score, color,
-    label: score >= 60 ? 'Good' : score >= 38 ? 'Fair' : 'Low',
-    formula: hasSleep ? (sleepScore.hasStages ? 'hrv+rhr+sleep-quality' : 'hrv+rhr+sleep-duration') : 'hrv+rhr',
-    todayHRV, todayRHR, todaySleep: hasSleep ? todaySleep : null, sleepScore,
-    meanHRV: Math.round(meanHRV * 10) / 10, meanRHR: Math.round(meanRHR * 10) / 10,
-    zHRV: Math.round(zHRV * 10) / 10, zRHR: Math.round(zRHR * 10) / 10,
-    dataPoints: Math.min(hrv7.length, rhr7.length),
+    status, statusLabel: status === 'suppressed' ? 'HRV meaningfully suppressed'
+      : status === 'elevated' ? 'HRV meaningfully elevated'
+        : status === 'usual' ? 'HRV within usual range' : 'Building baseline',
+    color, confidence, hrvMetric: 'Apple Health SDNN',
+    hrv: hrvBand, restingHr: rhrBand, sleep,
+    latestHrv: latestHrv ? Number(latestHrv.value) : null,
+    latestRhr: latestRhr ? Number(latestRhr.value) : null,
+    dataPoints: rollingPoints, baselinePoints,
+    formula: '7-day rolling Apple Health SDNN HRV vs personal baseline ± 0.5 SD',
   };
 }
 
@@ -163,5 +197,5 @@ function healthBaseline(readings, days = 7) {
 module.exports = {
   HEALTH_KEYS, EMPTY_HEALTH_DATA, HEALTH_METRIC_KEY_MAP, emptyHealthData, mapHealthRows, mergeHealthData,
   localDateStr, lastNDaysReadings, latestReading, rollingAverage, healthBaseline,
-  computeSleepScore, computeRecovery, classifyHealthTrend,
+  computeSleepProfile, computeReadiness, computeRecovery: computeReadiness, classifyHealthTrend,
 };

@@ -14,6 +14,16 @@ Format for commits: `Fix BUG-NNN: short description`
 
 ## Fixed
 
+### BUG-011 [FIXED] Weekly AI review hid useful service failure detail
+**Fixed:** 2026-11-02 by Codex
+**Detail:** Weekly review failures were shown only as a generic “non-2xx status code”, and the full history context could exceed a provider's request limit.
+**Fix applied:** Weekly reviews now use a smaller bounded context, the client preserves the Edge Function HTTP status and response body detail, the deterministic fallback includes available evidence, and the Edge Function emits request-scoped operational telemetry without health payloads.
+
+### BUG-012 [FIXED] Home readiness used an unvalidated composite recovery score
+**Fixed:** 2026-11-02 by Codex
+**Detail:** Recovery was presented as a 0–100 score built from IronLog-specific weights for HRV, resting HR, and sleep.
+**Fix applied:** Home and Health now use an Apple Health SDNN HRV-led personal baseline protocol with an explicit insufficient-data state; sleep remains separate context and no composite score is displayed.
+
 ### BUG-002 [FIXED] Overload nudge fires too early
 **Fixed:** 2026-05-18 (confirmed by Claude code review — fix already in codebase)
 **Detail:** Several exercises have `defaultReps === repMax` (goblet squat, DB bench, KB deadlift, split squat). Completing prescribed reps on the first session triggers "add load." Logic also ignored high pain and high RPE.

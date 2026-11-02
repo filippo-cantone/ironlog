@@ -238,9 +238,22 @@ export function buildAiContext({ healthData, sessions, watchData, recovery, coac
     watch: summarizeWatchData(watchData),
     rules: {
       recovery: recovery ? {
-        score: asNumber(recovery.score),
-        label: String(recovery.label || '').slice(0, 30),
-        z: round(recovery.z, 2),
+        status: String(recovery.status || '').slice(0, 30),
+        statusLabel: String(recovery.statusLabel || '').slice(0, 80),
+        confidence: String(recovery.confidence || '').slice(0, 20),
+        hrvMetric: String(recovery.hrvMetric || 'Apple Health SDNN').slice(0, 40),
+        dataPoints: asNumber(recovery.dataPoints),
+        baselinePoints: asNumber(recovery.baselinePoints),
+        hrv: recovery.hrv ? {
+          rollingMean: round(recovery.hrv.rollingMean, 2),
+          baselineMean: round(recovery.hrv.baselineMean, 2),
+          baselineSd: round(recovery.hrv.baselineSd, 2),
+          lower: round(recovery.hrv.lower, 2),
+          upper: round(recovery.hrv.upper, 2),
+        } : null,
+        restingHrStatus: String(recovery.restingHr?.status || '').slice(0, 20),
+        sleepDuration: round(recovery.sleep?.totalSleep, 2),
+        sleepDurationStatus: String(recovery.sleep?.durationStatus || '').slice(0, 60),
       } : null,
       coach: coachRec ? {
         label: String(coachRec.label || '').slice(0, 50),

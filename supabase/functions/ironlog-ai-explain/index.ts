@@ -92,6 +92,8 @@ function buildMessages(payload) {
         'You are IronLog’s explanation assistant.',
         'Explain the provided fitness summary in plain, calm language. Do not diagnose or provide emergency medical advice.',
         'The rulesResult is authoritative for recovery, progression, pain, and medical-safety decisions. You may explain it, but you must not override it.',
+        'When the context says Apple Health SDNN, call it SDNN; do not describe it as lnRMSSD or claim this is a clinically validated readiness score.',
+        'Sleep duration is separate context. Deep, core, and REM values are wearable stage estimates and must be described cautiously rather than treated as decisive measurements.',
         'Do not invent values, trends, workouts, or causes. Call out missing or sparse data in limitations.',
         'Write for a non-expert. The summary must explain what the numbers mean, mention the most important signals, and connect them to the result.',
         'For every available evidence item, explain what the signal measures, whether this reading is favourable or cautionary, and why it matters today. Never write generic text such as "Used by IronLog readiness rules."',
@@ -106,7 +108,7 @@ function buildMessages(payload) {
   ];
 }
 
-async function callProvider(provider, payload, env) {
+async function callProvider(provider, payload, env, requestId) {
   const key = env.get(provider.env);
   if (!key) return { skipped: true };
   if (provider.name === 'cloudflare' && !env.get('CLOUDFLARE_ACCOUNT_ID')) return { skipped: true };
@@ -133,22 +135,22 @@ async function callProvider(provider, payload, env) {
     if (!response.ok) {
       const providerError = await response.text();
       const retryable = providerFailureIsRetryable(response.status, providerError);
-      logSafe({ event: 'provider_failure', provider: provider.name, model: provider.model, durationMs, status: response.status, retryable });
+      logSafe({ event: 'provider_failure', requestId, mode: payload.mode, provider: provider.name, model: provider.model, durationMs, status: response.status, retryable });
       return { error: true, retryable, status: response.status };
     }
     const body = await response.json();
     const content = providerContent(body);
     const insight = parseJson(content);
     if (!validateInsight(insight)) {
-      logSafe({ event: 'provider_invalid_output', provider: provider.name, model: provider.model, durationMs });
+      logSafe({ event: 'provider_invalid_output', requestId, mode: payload.mode, provider: provider.name, model: provider.model, durationMs });
       return { error: true, retryable: true, status: 502 };
     }
-    logSafe({ event: 'provider_success', provider: provider.name, model: provider.model, durationMs });
+    logSafe({ event: 'provider_success', requestId, mode: payload.mode, provider: provider.name, model: provider.model, durationMs });
     return { insight: { ...insight, generatedAt: insight.generatedAt || new Date().toISOString() }, provider: provider.name, model: provider.model };
   } catch (error) {
     const durationMs = Date.now() - started;
     const timeoutError = error?.name === 'AbortError';
-    logSafe({ event: 'provider_exception', provider: provider.name, model: provider.model, durationMs, reason: timeoutError ? 'timeout' : 'network' });
+    logSafe({ event: 'provider_exception', requestId, mode: payload.mode, provider: provider.name, model: provider.model, durationMs, reason: timeoutError ? 'timeout' : 'network' });
     return { error: true, retryable: true, status: 503 };
   } finally {
     clearTimeout(timeout);
@@ -171,28 +173,42 @@ function validatePayload(payload) {
 }
 
 Deno.serve(async request => {
+  const requestId = crypto.randomUUID();
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (request.method !== 'POST') return json({ ok: false, error: 'Method not allowed.' }, 405);
+  if (request.method !== 'POST') return json({ ok: false, error: 'Method not allowed.', requestId }, 405);
   let payload;
   try {
     const raw = await request.text();
-    if (raw.length > 65000) return json({ ok: false, error: 'Request summary is too large.' }, 413);
+    if (raw.length > 65000) return json({ ok: false, error: 'Request summary is too large.', requestId }, 413);
     payload = JSON.parse(raw);
   } catch (error) {
-    return json({ ok: false, error: 'Invalid JSON request.' }, 400);
+    return json({ ok: false, error: 'Invalid JSON request.', requestId }, 400);
   }
   const validationError = validatePayload(payload);
-  if (validationError) return json({ ok: false, error: validationError }, 400);
+  if (validationError) {
+    logSafe({ event: 'request_rejected', requestId, mode: payload?.mode || 'unknown', reason: validationError });
+    return json({ ok: false, error: validationError, requestId }, 400);
+  }
 
   let configured = false;
   for (const provider of providers) {
     if (envHas(provider)) configured = true;
-    const result = await callProvider(provider, payload, Deno.env);
+    const result = await callProvider(provider, payload, Deno.env, requestId);
     if (result.skipped) continue;
-    if (result.insight) return json({ ok: true, provider: result.provider, model: result.model, insight: result.insight });
-    if (result.error && !result.retryable) return json({ ok: false, error: 'AI provider rejected the request.' }, 502);
+    if (result.insight) return json({ ok: true, provider: result.provider, model: result.model, insight: result.insight, requestId });
+    if (result.error && !result.retryable) {
+      return json({
+        ok: false,
+        error: 'AI provider rejected the request.',
+        provider: result.provider,
+        providerStatus: result.status,
+        requestId,
+      }, 502);
+    }
   }
-  return json({ ok: false, code: configured ? 'AI_UNAVAILABLE' : 'AI_NOT_CONFIGURED', error: configured ? 'AI providers are temporarily unavailable.' : 'AI providers are not configured.' }, 503);
+  const code = configured ? 'AI_UNAVAILABLE' : 'AI_NOT_CONFIGURED';
+  logSafe({ event: 'request_failed', requestId, mode: payload.mode, code });
+  return json({ ok: false, code, error: configured ? 'AI providers are temporarily unavailable.' : 'AI providers are not configured.', requestId }, 503);
 });
 
 function envHas(provider) {

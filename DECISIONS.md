@@ -306,7 +306,7 @@ Provider order is:
 3. Cloudflare Workers AI `@cf/meta/llama-3.1-8b-instruct`
 4. IronLog deterministic explanation
 
-The browser sends a bounded summary to the Supabase Edge Function. Provider credentials remain Edge Function secrets. The summary excludes raw Apple Health exports, ECG readings, raw Watch samples, notes, and set timestamps. The Edge Function advances to the next provider for transient statuses, timeouts, network outages, invalid model output, or provider-specific context/request-shape incompatibilities; authentication and request-validation errors stop the chain. The live function is deployed as version 4, with prompts requiring plain-language metric meanings and a reasoned recommendation.
+The browser sends a bounded summary to the Supabase Edge Function. Provider credentials remain Edge Function secrets. The summary excludes raw Apple Health exports, ECG readings, raw Watch samples, notes, and set timestamps. The Edge Function advances to the next provider for transient statuses, timeouts, network outages, invalid model output, or provider-specific context/request-shape incompatibilities; authentication and request-validation errors stop the chain. The live function is deployed as version 6, with prompts requiring plain-language metric meanings and a reasoned recommendation.
 
 The client validates structured responses, caches recent results in `il_ai_insights`, asks for first-use consent, supports an AI enable/disable setting, and falls back to the deterministic explanation whenever AI is disabled, unavailable, rate-limited, or malformed. Sparse data is labelled low confidence.
 
@@ -319,3 +319,23 @@ CLOUDFLARE_ACCOUNT_ID
 ```
 
 The Supabase function is intentionally committed as source but is not considered provider-live until the user configures secrets and deploys `ironlog-ai-explain`.
+
+---
+
+## Decision 4 — Science-first readiness and weekly AI error handling ✅ Implemented 2026-11-02
+
+The former 0–100 recovery composite was removed because its exact weights and thresholds were IronLog-specific heuristics, not a validated clinical or sports-science score. Home and Health now use a transparent HRV-led protocol adapted for Apple Health SDNN: a seven-day rolling trend is compared with a personal baseline and a smallest-worthwhile-change band, with an explicit insufficient-data state.
+
+Resting HR, sleep duration/efficiency, wearable sleep stages, training load, RPE, pain, and Watch effort are displayed as context. Sleep stages are not treated as precise enough to determine readiness by themselves. Pain and medical-safety constraints remain authoritative.
+
+The weekly AI review uses a smaller mode-specific context budget, preserves the actual Edge Function HTTP status and response detail in the UI, and keeps a useful deterministic evidence summary when the provider chain is unavailable. The Edge Function logs only request ID, mode, provider, model, status, duration, and failure reason.
+
+---
+
+## Decision 4 — Science-first readiness and weekly AI error handling ✅ Implemented 2026-11-02
+
+The former 0–100 recovery composite was removed because its exact weights and thresholds were IronLog-specific heuristics, not a validated clinical or sports-science score. Home and Health now use a transparent HRV-led protocol adapted for Apple Health SDNN: a seven-day rolling trend is compared with a personal baseline and a smallest-worthwhile-change band, with an explicit insufficient-data state.
+
+Resting HR, sleep duration/efficiency, wearable sleep stages, training load, RPE, pain, and Watch effort are displayed as context. Sleep stages are not treated as precise enough to determine readiness by themselves. Pain and medical-safety constraints remain authoritative.
+
+The weekly AI review uses a smaller mode-specific context budget, preserves the actual Edge Function HTTP status and response detail in the UI, and keeps a useful deterministic evidence summary when the provider chain is unavailable. The Edge Function logs only request ID, mode, provider, model, status, duration, and failure reason.

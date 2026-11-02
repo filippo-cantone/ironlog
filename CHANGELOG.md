@@ -2,12 +2,20 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-02 — Science-first readiness and weekly AI review fix (Codex)
+
+- Replaced the unvalidated 0–100 recovery headline with transparent Apple Health SDNN HRV-led readiness: seven-day rolling trend, personal baseline, smallest-worthwhile-change band, confidence, and explicit “Building baseline” state
+- Kept resting HR, sleep duration/efficiency/stages, training load, RPE, pain, and Apple Watch effort as visible context rather than arbitrary weighted points; sleep stages are described cautiously because they are wearable estimates
+- Updated Home and Health explanations, readiness evidence, sleep modal, and AI context to use the new model without inventing a score
+- Fixed weekly AI review diagnostics: mode-specific bounded context, actual HTTP status/response detail in fallback messages, useful deterministic weekly evidence, and request-scoped server telemetry without health payload logging
+- Added regression tests for SDNN readiness, sparse baseline handling, score removal, and detailed AI service failures
+
 ---
 
 ## 2026-11-02 — Multi-provider AI explanation layer (Codex)
 
 - Improved AI explanations so they define each health signal, connect the evidence to the recommendation, and provide a practical reasoned action instead of echoing the rules text; deployed Edge Function version 4
-- Hardened provider fallback for model-specific context/request-shape rejections and alternate OpenAI-compatible response formats; the live Edge Function is deployed as version 2
+- Hardened provider fallback for model-specific context/request-shape rejections and alternate OpenAI-compatible response formats; the live Edge Function is now deployed as version 6 with status/provider diagnostics
 - AI fallback modals now show a short service note when the provider chain is unavailable, while keeping IronLog's deterministic guidance visible
 - Added bounded full-history AI context summaries that exclude raw Health Auto Export, ECG, notes, set timestamps, and raw Watch samples
 - Added Groq → Cloudflare Workers AI fallback Edge Function source with safe retry policy, structured output validation, provider telemetry, and no health-payload logging

@@ -42,7 +42,7 @@ test('AI context summarises full history without raw/private fields', () => {
       exercises: [{ id: 'bb_flat_bench', sets: [{ weight: 20, reps: 8, rpe: 7, pain: 0, done: true, setStartedAt: 'private' }] }],
     }],
     watchData: { workouts: [{ date: '2026-11-01', avgHr: 120, samples: [{ hr: 120, t: 1 }], sampleCount: 1 }] },
-    recovery: { score: 64, label: 'Good', z: 0.9 },
+    recovery: { status: 'usual', statusLabel: 'HRV within usual range', confidence: 'medium', hrvMetric: 'Apple Health SDNN', dataPoints: 7, baselinePoints: 14, hrv: { rollingMean: 22, baselineMean: 21, baselineSd: 2, lower: 20, upper: 22 }, sleep: { totalSleep: 7.5, durationStatus: 'meets the 7-hour minimum' } },
     coachRec: { label: 'Train steady', detail: 'Keep effort controlled', flags: ['watch'] },
     allExercises: { bb_flat_bench: { name: 'Bench Press' } },
     focus: 'weekly review',
@@ -98,6 +98,36 @@ test('AI client falls back cleanly on service failure and accepts valid response
   assert.equal(success.provider, 'groq');
   const cached = await requestAiExplanation({ dbClient: { functions: { invoke: async () => { throw new Error('should use cache'); } } }, payload: { mode: 'metric_explanation', context: {}, rulesResult: {} }, storage });
   assert.equal(cached.status, 'cached');
+});
+
+test('AI client preserves Edge Function status and response detail', async () => {
+  const storage = memoryStorage();
+  const response = {
+    status: 503,
+    clone: () => ({ json: async () => ({ code: 'AI_UNAVAILABLE', error: 'AI providers are temporarily unavailable.' }) }),
+  };
+  const result = await requestAiExplanation({
+    dbClient: { functions: { invoke: async () => ({ data: null, error: { message: 'Edge Function returned a non-2xx status code', context: response } }) } },
+    payload: { mode: 'weekly_review', context: {}, rulesResult: {} },
+    storage,
+  });
+  assert.equal(result.status, 'fallback');
+  assert.equal(result.providerStatus, 503);
+  assert.match(result.error, /503/);
+  assert.match(result.error, /temporarily unavailable/);
+});
+
+test('AI client identifies provider authentication failures without hiding deterministic fallback', async () => {
+  const storage = memoryStorage();
+  const result = await requestAiExplanation({
+    dbClient: { functions: { invoke: async () => ({ data: { ok: false, error: 'AI provider rejected the request.', provider: 'groq', providerStatus: 401 }, error: null }) } },
+    payload: { mode: 'weekly_review', context: {}, rulesResult: {} },
+    storage,
+  });
+  assert.equal(result.status, 'fallback');
+  assert.equal(result.providerStatus, 401);
+  assert.match(result.error, /groq/);
+  assert.match(result.error, /401/);
 });
 
 test('provider fallback policy retries transient failures, never auth errors', () => {

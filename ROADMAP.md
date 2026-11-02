@@ -4,10 +4,11 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
-### Science-first readiness + weekly AI fix — in progress — Codex
-- Replace the unvalidated composite recovery score with an Apple Health SDNN HRV-led readiness protocol.
-- Keep sleep, resting HR, training load, RPE, pain, and Watch effort as transparent context signals.
-- Harden weekly AI request sizing/error reporting and make deterministic fallback explanations useful.
+### Science-first readiness + weekly AI fix — complete — Codex — 2026-11-02
+- ✅ Replaced the unvalidated composite recovery score with an Apple Health SDNN HRV-led readiness protocol.
+- ✅ Kept sleep, resting HR, training load, RPE, pain, and Watch effort as transparent context signals.
+- ✅ Hardened weekly AI request sizing/error reporting and made deterministic fallback explanations useful.
+- ✅ Deployed the updated `ironlog-ai-explain` Edge Function with request IDs and safe telemetry for mode, provider, model, status, duration, and failure reason; health payloads are never logged.
 
 ### Architecture refactor — in progress — Codex
 - Modularise IronLog gradually, beginning with safety/data-integrity foundations while preserving the current GitHub Pages deployment.
@@ -18,7 +19,7 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 2 UI step: extracted the bottom navigation into `src/ui/Nav.jsx`; it now receives the icon renderer as an explicit dependency
 - ✅ Phase 2 screen step: extracted Progress and Rides behind explicit props and callbacks
 - ✅ Phase 3 data step: moved the canonical A/B/C and 30-day Iron Series workout catalogue to `src/data/workouts.js`
-- ✅ Phase 3 health step: moved stage-aware sleep scoring, recovery scoring, baselines, and health trend classification into `src/domain/health.js`
+- ✅ Phase 3 health step: moved sleep profile, Apple Health SDNN readiness baseline, and health trend classification into `src/domain/health.js`
 - ✅ Phase 1 sync step: cloud restore now compares record identity and timestamps, preserving equal-size local conflicts instead of silently replacing them
 - ✅ Phase 1 storage step: backup creation/file reading moved to `src/storage/importExport.js`; malformed and unsupported backup versions are rejected before state changes
 - ✅ Phase 4 screen step: extracted PreStart and Health screens behind explicit props, callbacks, helper contracts, and UI component dependencies
@@ -41,7 +42,7 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ AI entry points added to readiness, health metrics, sleep, Watch effort, workout effort, exercise progression, and Health weekly review
 - ✅ First-use disclosure and Manage → Backup AI setting added
 - ✅ Node tests cover context privacy/size, cache expiry, response schema, fallback policy, and deterministic fallback
-- ✅ Configure `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` as Supabase secrets and deploy the Edge Function — Supabase version 2 live 2026-11-02
+- ✅ Configure `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` as Supabase secrets and deploy the Edge Function — Supabase version 6 live 2026-11-02
 
 ---
 
@@ -95,7 +96,7 @@ The app is in active daily use. All core workout features complete. Apple Watch 
 
 ### Recovery Dashboard (Home screen)
 - Greeting + date header
-- Recovery Summary card: circular ring (0–100%, green/amber/red), fatigue bar, training load bar, Readiness label + z-score context + "estimate" disclaimer
+- HRV-led readiness card: current/rolling Apple Health SDNN, personal-baseline status, confidence, fatigue bar, training load bar, and transparent evidence
 - Today's Training: recommendation boxes (Recommended / Take it steady / Recovery suggested)
 - 4-metric horizontal strip: HRV, Resting HR, Steps, Active Cal — icons, area sparklines, colour-coded vs 7-day baseline
 - Recovery Trends chart: dual-axis HRV + Resting HR, 7D/30D/90D toggle, auto-insight text
@@ -103,27 +104,24 @@ The app is in active daily use. All core workout features complete. Apple Watch 
 - Weekly Activity Heatmap (5-week GitHub-style grid)
 - Recent Workouts (last 3 sessions+rides, "+ Log Workout" CTA)
 
-### Recovery score formula (as of 2026-06-08)
-Based on Buchheit 2014, Plews 2013, Altini/HRV4Training methodology.
-Adaptive: uses 3-factor formula when sleep is available, 2-factor otherwise.
+### HRV-led readiness protocol (current)
+
+IronLog uses Apple Health HRV **SDNN** as the primary readiness signal. It is an evidence-informed personal training context, not a clinically validated score and not a direct copy of lnRMSSD research protocols.
 
 ```
-// Shared baseline (both variants)
-zHRV   = (todayHRV   - mean7HRV)  / sd7HRV   // higher HRV = positive = good
-zRHR   = (mean7RHR   - todayRHR)  / sd7RHR   // lower  RHR = positive = good (inverted)
+latestDate       = latest Apple Health HRV/RHR date
+rollingHRV       = mean of HRV readings in the latest 7-day window
+baselineHRV      = mean and SD of HRV readings in the preceding 60-day window
+smallestChange   = baselineHRV ± (0.5 × baselineHRV SD)
 
-// WITH sleep_analysis:
-// Sleep display score: target-level sleep components score around 75 ("Good"), not 50.
-sleepScore = 35% total sleep + 20% sleep efficiency + 20% deep sleep + 15% REM sleep + 10% awake-time penalty
-zSleep = (sleepScore - 75) / 15
-zComb  = zHRV × 0.40 + zRHR × 0.30 + zSleep × 0.30
-
-// WITHOUT sleep (watch not worn overnight):
-zComb  = zHRV × 0.70 + zRHR × 0.30
-
-score = clamp(50 + zComb × 15, 0, 100)       // 50 = average, ±1 SD = ±15 pts
+rollingHRV < lower band  -> HRV meaningfully suppressed
+rollingHRV > upper band  -> HRV meaningfully elevated
+otherwise                -> HRV within usual range
+fewer than 3 rolling or 14 baseline readings -> Building baseline
 ```
-Thresholds: Good ≥ 60, Fair 38–59, Low < 38
+
+Resting HR uses the same personal-band approach as context, with higher values treated as cautionary. Sleep is separate: duration is compared with the general adult minimum of seven hours, efficiency is reported when available, and deep/core/REM/awake stages remain descriptive wearable estimates. Pain, medical constraints, RPE, training load, and Watch effort can reduce or modify a session but are never hidden inside an arbitrary weighted score.
+
 Sleep metric name in Health Auto Export JSON: `sleep_analysis`. Receiver stores `sleep`, `sleep_deep`, `sleep_rem`, `sleep_core`, `sleep_awake`, optional `sleep_in_bed`, and derived `sleep_efficiency`.
 
 ---
@@ -474,25 +472,21 @@ Currently the user manually selects which workout to do. The app suggests the ne
 
 4. **Bug fixes** — Recovery ring capped at 100% visually; StrengthWeekCard now includes Iron Series sessions (was filtering them out); Cycling/Strength/Heatmap/Recent Workouts moved above workout hero card; trend chart shows 3–4 date labels not just first/last.
 
-**Architecture decisions made:**
+**Architecture decisions made (historical dashboard notes):**
 - `healthData` passed as prop to Dashboard (not fetched inside Dashboard)
 - Rolling 14-day average used as baseline for all recovery calculations
-- Recovery formula: `round((hrvScore × 0.5) + (rhrScore × 0.5))`, clamped 0–100 for display
+- The former composite recovery score was retired on 2026-11-02 in favour of the transparent HRV-led protocol above.
 - StrengthWeekCard counts ALL completed sessions (including Iron Series) — not just A/B/C
 
 **Data available from Health Auto Export (now syncing to Supabase):**
 - HRV, Resting HR, Steps, Active Energy (→kcal) — live and populating charts
 - Cycling Distance, VO2 Max, Blood Oxygen, Respiratory Rate, Cardio Recovery, Sleep Analysis, Walking HR — user added these to export but NOT yet stored/displayed (Edge Function and DB schema would need extending)
 
-**Recovery score methodology change (same session):**
-- Researched WHOOP, Oura, Garmin, and sports science literature (Buchheit, Plews, Altini)
-- Replaced simple ratio formula with SD-band z-score approach
-- 7-day baseline, HRV 70% / RHR 30% weighting, score = 50 + z×15
-- Real-data result: was inflated 100% Good → now honest 46% Fair
-- See CHANGELOG.md 2026-06-06 entry and `computeRecovery()` comment block in source
+**Superseded recovery-score history:**
+- Earlier versions used weighted and z-score composites. Those values remain in the historical changelog only; the active app no longer calculates or displays them.
 
 **What Codex could tackle next:**
-- **Sleep pipeline now complete** — `ingest-health` Edge Function v2 handles `sleep_analysis`, `pullHealthMetrics` returns sleep array, `computeRecovery` auto-switches to 3-factor formula. Sleep data will start appearing once the nightly automation sends the first export containing sleep.
+- **Sleep pipeline now complete** — `ingest-health` stores duration, deep, REM, core, awake, and efficiency. The active app reports these separately and does not let a wearable stage estimate determine readiness.
 - Extend `ingest-health` Edge Function for remaining metrics: cycling_distance, vo2_max, respiratory_rate, blood_oxygen — see CLAUDE.md Health Export section for metric name mappings
 - Demo animation component (Priority 4) — still pending, all assets exist in `assets/demos/`
 - Exercise YouTube video IDs (Decision 1) — research pass pending per memory file

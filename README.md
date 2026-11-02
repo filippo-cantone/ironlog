@@ -98,7 +98,7 @@ ironlog/
 │   ├── data/workouts.js     ← canonical A/B/C and Iron Series programmes
 │   ├── data/exercises.js    ← preset/Iron Series exercise and muscle metadata
 │   ├── data/mobility.js     ← warm-up, stretch, and mobility safety catalogues
-│   ├── domain/              ← pure session, health, progression logic (including sleep/recovery scoring)
+│   ├── domain/              ← pure session, health, progression logic (including HRV-led readiness)
 │   ├── storage/             ← validated persistence and backup/import helpers
 │   ├── integrations/        ← Supabase sync and AI coach transport helpers
 │   └── ../supabase/functions/ironlog-ai-explain/ ← provider fallback Edge Function
@@ -138,6 +138,16 @@ supabase functions deploy ironlog-ai-explain
 ```
 
 Never put these secrets in `src/`, `localStorage`, GitHub, or the generated HTML.
+
+### Science-first readiness
+
+IronLog does not present a clinically validated composite recovery score. The active protocol is deliberately transparent:
+
+- Apple Health HRV is identified as **SDNN**. IronLog compares a seven-day rolling trend with Phill's personal history once there are at least 14 baseline readings and 3 rolling readings.
+- The decision band uses the smallest-worthwhile-change idea: the personal baseline mean plus or minus 0.5 baseline standard deviations. This is an evidence-informed training context, not a clinical threshold or a direct copy of lnRMSSD research protocols.
+- Readiness is classified as **within usual range**, **meaningfully suppressed**, **meaningfully elevated**, or **building baseline**. Resting HR, sleep duration/efficiency, wearable sleep stages, recent training, RPE, pain, and Apple Watch effort are shown as context rather than arbitrary weighted points.
+- Sleep is reported separately. Seven hours is used as the general adult minimum from the AASM consensus statement; deep, core, and REM stages remain descriptive because wearable stage estimates are less reliable than total sleep and sleep/wake detection.
+- Pain and medical-safety constraints always override readiness suggestions. A suppressed HRV trend reduces planned intensity or volume; it does not automatically prohibit all movement.
 
 ### 1. THEME (`C` object)
 All colours and font names in a single object. Change colours here to restyle the whole app.

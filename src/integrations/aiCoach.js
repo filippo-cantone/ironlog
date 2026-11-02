@@ -90,9 +90,14 @@ export function cacheInsight(key, insight, { storage = globalThis.localStorage, 
 
 export function makeDeterministicInsight({ focus = 'IronLog', rulesResult = {}, sparse = false } = {}) {
   const evidence = Array.isArray(rulesResult.evidence) ? rulesResult.evidence : [];
+  const evidenceSummary = evidence.slice(0, 5)
+    .map(item => `${text(item?.signal, 'Signal')}: ${text(item?.value, 'not available')} — ${text(item?.meaning)}`)
+    .filter(Boolean)
+    .join(' ');
   return {
     title: text(rulesResult.title, `${focus} insight`).slice(0, 120),
-    summary: text(rulesResult.summary, 'IronLog could not generate an additional explanation right now.').slice(0, 700),
+    summary: text(rulesResult.summary, 'IronLog could not generate an additional explanation right now.')
+      .concat(evidenceSummary ? ` Evidence: ${evidenceSummary}` : '').slice(0, 700),
     evidence: evidence.slice(0, 8).map(item => ({
       signal: text(item?.signal, 'Signal'),
       value: text(item?.value, 'Available data'),
@@ -114,8 +119,32 @@ export function requestAiExplanation({ dbClient, payload, storage = globalThis.l
   const cached = getCachedInsight(key, { storage, now, ttlMs: cacheTtlMs });
   if (cached) return Promise.resolve({ status: 'cached', insight: cached, provider: cached.provider, model: cached.model });
   if (!dbClient?.functions?.invoke) return Promise.resolve({ status: 'fallback', error: 'AI service is not configured.' });
-  return dbClient.functions.invoke('ironlog-ai-explain', { body: payload }).then(({ data, error }) => {
-    if (error || !data?.ok) return { status: 'fallback', error: error?.message || data?.error || 'AI service unavailable.' };
+  return dbClient.functions.invoke('ironlog-ai-explain', { body: payload }).then(async ({ data, error }) => {
+    if (error) {
+      const response = error?.context;
+      const providerStatus = Number(response?.status || error?.status) || null;
+      let detail = '';
+      try {
+        if (response?.clone) {
+          const body = await response.clone().json();
+          detail = body?.error || body?.message || body?.code || '';
+        }
+      } catch (parseError) {
+        // Supabase may expose a non-JSON response for gateway failures.
+      }
+      const statusText = providerStatus ? ` (${providerStatus})` : '';
+      return { status: 'fallback', error: `AI service returned${statusText}: ${detail || error.message || 'unavailable.'}`, providerStatus };
+    }
+    if (!data?.ok) {
+      const providerStatus = Number(data?.providerStatus || data?.status) || null;
+      const provider = data?.provider ? ` from ${data.provider}` : '';
+      const status = providerStatus ? ` (${providerStatus})` : '';
+      return {
+        status: 'fallback',
+        error: `${data?.error || 'AI service unavailable.'}${provider}${status}`,
+        providerStatus,
+      };
+    }
     const validated = validateAiInsight(data.insight);
     if (!validated.ok) return { status: 'fallback', error: validated.error };
     const insight = { ...validated.insight, provider: data.provider, model: data.model };

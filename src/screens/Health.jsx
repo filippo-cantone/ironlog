@@ -337,7 +337,7 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
 
       {sectionHeader('Readiness Breakdown', 'activity')}
       <HealthInsightCard
-        title={readiness.recovery ? `${readiness.recovery.score}% · ${readiness.recovery.label}` : 'Health data needed'}
+        title={readiness.recovery ? readiness.recovery.statusLabel : 'Health data needed'}
         subtitle={readiness.summary}
         tone={readiness.recovery?.color || C.amber}
       >
@@ -356,7 +356,8 @@ export default function HealthView({ sessions, allExercises, healthData, setHeal
               summary: readiness.summary,
               recommendation: 'Use the strongest positive pattern as the focus for next week, while respecting pain and recovery safeguards.',
               evidence: [
-                { signal: 'Readiness', value: readiness.recovery ? `${readiness.recovery.score}% · ${readiness.recovery.label}` : 'Not available', meaning: 'Current rules-based recovery result.' },
+                { signal: 'HRV protocol', value: readiness.recovery ? readiness.recovery.statusLabel : 'Not available', meaning: 'Apple Health SDNN HRV compared with a personal rolling baseline using a smallest-worthwhile-change band.' },
+                ...(readiness.recovery?.hrv ? [{ signal: 'HRV baseline', value: `${readiness.recovery.hrv.rollingMean != null ? `${Math.round(readiness.recovery.hrv.rollingMean * 10) / 10} ms rolling` : 'not available'} · ${readiness.recovery.hrv.baseline?.length || 0} baseline readings`, meaning: 'The protocol needs enough consistent readings before making a confident training adjustment.' }] : []),
                 { signal: 'Training consistency', value: `${consistency.totalThisMonth} sessions in 28 days`, meaning: 'Recent completed-session frequency.' },
                 ...(hrvCorrelation ? [{ signal: 'HRV/workout relationship', value: `${hrvCorrelation.pct}% on workout days`, meaning: 'Descriptive relationship, not proof of cause.' }] : []),
               ],

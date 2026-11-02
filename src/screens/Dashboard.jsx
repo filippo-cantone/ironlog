@@ -25,19 +25,17 @@ export default function Dashboard({ sessions, rides, setView, activeSession, sel
   const insight   = hasHealthData ? computeTrendInsight(hd) : null;
   const watchSummary = summarizeWatchEffort(watchData);
 
-  // Training recommendation — thresholds aligned to new SD-band scoring
-  // Readiness combines recovery score (physiology) AND fatigue (workload)
+  // Training recommendation — HRV-led protocol plus transparent workload/safety context.
   const trainingRec = (r, f) => {
     if (!r) return { label: 'Scheduled', color: C.blue, detail: 'Log workouts to get a recommendation.' };
+    if (r.status === 'insufficient') return { label: 'Build baseline', color: C.blue, detail: 'Keep exporting consistent Apple Health readings before using HRV to change training.' };
     const highFatigue = f && f.level >= 60;
     const modFatigue  = f && f.level >= 30;
-    if (r.score >= 60) {
-      if (highFatigue || watchSummary.hasRecentHard) return { label: 'Moderate today',  color: C.amber, detail: watchSummary.hasRecentHard ? 'Recovery is good, but Watch effort was high this week — keep effort controlled.' : 'Body is ready, but load is high — consider a lighter session.' };
-      if (modFatigue)   return { label: 'Good to train',   color: C.green, detail: 'Ready to train. Keep effort controlled.' };
-      return                   { label: 'Good to train',   color: C.green, detail: 'You can push hard today.' };
-    }
-    if (r.score >= 38) return  { label: 'Take it steady',  color: C.amber, detail: 'Moderate effort. Keep RPE below 8.' };
-    return                     { label: 'Recovery day',    color: C.red,   detail: 'Prioritise rest or very light movement.' };
+    if (r.status === 'suppressed') return { label: 'Train lighter', color: C.red, detail: 'Your HRV trend is meaningfully below your personal range. Reduce planned intensity or volume; do not automatically cancel movement.' };
+    if (r.restingHr?.status === 'elevated') return { label: 'Use a cautious plan', color: C.amber, detail: 'HRV is not suppressed, but resting HR is elevated. Keep the warm-up controlled and avoid maximal effort.' };
+    if (highFatigue || watchSummary.hasRecentHard) return { label: 'Moderate today', color: C.amber, detail: watchSummary.hasRecentHard ? 'HRV is not suppressed, but recent Watch effort was high. Keep effort controlled.' : 'HRV is not suppressed, but recent load is high. Consider a lighter session.' };
+    if (modFatigue) return { label: 'Good to train', color: C.green, detail: 'HRV is within or above your usual range. Keep effort controlled.' };
+    return { label: 'Good to train', color: C.green, detail: 'HRV is within or above your usual range. Follow the planned session and use your warm-up, RPE, and pain signals.' };
   };
   const rec = trainingRec(recovery, fatigue);
 

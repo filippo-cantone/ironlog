@@ -25,7 +25,7 @@ import aiCoachDomain from './integrations/aiCoach.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
-const { emptyHealthData, mergeHealthData, computeSleepScore: computeSleepScoreDomain, computeRecovery: computeRecoveryDomain } = healthDomain;
+const { emptyHealthData, mergeHealthData, computeSleepProfile: computeSleepProfileDomain, computeReadiness: computeReadinessDomain } = healthDomain;
 const { safeParse, validateBackup } = storageDomain;
 const { shouldRestoreCloud } = syncDomain;
 const { C, st, dash } = theme;
@@ -1193,136 +1193,7 @@ function readingOnDate(readings, date) {
   return (readings || []).find(r => r?.date === date) || null;
 }
 
-function scoreAgainstTarget(value, target, spread, higherBetter = true) {
-  if (!Number.isFinite(value) || !Number.isFinite(target) || !Number.isFinite(spread) || spread <= 0) return 50;
-  const delta = higherBetter ? value - target : target - value;
-  return clamp(50 + (delta / spread) * 15, 0, 100);
-}
-
-function scoreSleepComponent(value, target, spread, higherBetter = true) {
-  if (!Number.isFinite(value) || !Number.isFinite(target) || !Number.isFinite(spread) || spread <= 0) return 75;
-  const delta = higherBetter ? value - target : target - value;
-  return clamp(75 + (delta / spread) * 15, 0, 100);
-}
-
-function legacyComputeSleepScore(healthData) {
-  const total = healthData?.sleep || [];
-  const latest = getLatestReading(total);
-  if (!latest) return null;
-  const date = latest.date;
-  const totalSleep = Number(latest.value);
-  const inBed = Number(readingOnDate(healthData?.sleepInBed, date)?.value);
-  const deep = Number(readingOnDate(healthData?.sleepDeep, date)?.value);
-  const rem = Number(readingOnDate(healthData?.sleepRem, date)?.value);
-  const core = Number(readingOnDate(healthData?.sleepCore, date)?.value);
-  const awake = Number(readingOnDate(healthData?.sleepAwake, date)?.value);
-  const exportedEfficiency = Number(readingOnDate(healthData?.sleepEfficiency, date)?.value);
-  const inferredInBed = Number.isFinite(inBed) && inBed > 0
-    ? inBed
-    : (Number.isFinite(awake) && Number.isFinite(totalSleep) ? totalSleep + awake : null);
-  const efficiency = Number.isFinite(exportedEfficiency)
-    ? exportedEfficiency
-    : (Number.isFinite(inferredInBed) && inferredInBed > 0 ? (totalSleep / inferredInBed) * 100 : null);
-
-  const total7 = lastNDaysReadings(total, 7).map(r => Number(r.value)).filter(Number.isFinite);
-  const deep7 = lastNDaysReadings(healthData?.sleepDeep || [], 7).map(r => Number(r.value)).filter(Number.isFinite);
-  const rem7 = lastNDaysReadings(healthData?.sleepRem || [], 7).map(r => Number(r.value)).filter(Number.isFinite);
-  const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
-
-  const totalTarget = total7.length >= 3 ? avg(total7) : 7.5;
-  const deepTarget = deep7.length >= 3 ? avg(deep7) : 1.1;
-  const remTarget = rem7.length >= 3 ? avg(rem7) : 1.5;
-
-  const totalScore = scoreSleepComponent(totalSleep, totalTarget, 1.5, true);
-  const efficiencyScore = Number.isFinite(efficiency) ? scoreSleepComponent(efficiency, 88, 8, true) : 75;
-  const deepScore = Number.isFinite(deep) ? scoreSleepComponent(deep, deepTarget, 0.45, true) : 75;
-  const remScore = Number.isFinite(rem) ? scoreSleepComponent(rem, remTarget, 0.55, true) : 75;
-  const awakeScore = Number.isFinite(awake) ? scoreSleepComponent(awake, 0.6, 0.45, false) : 75;
-
-  const score = Math.round(clamp(
-    totalScore * 0.35 + efficiencyScore * 0.20 + deepScore * 0.20 + remScore * 0.15 + awakeScore * 0.10,
-    0, 100
-  ));
-  const label = score >= 60 ? 'Good' : score >= 38 ? 'Fair' : 'Low';
-  const color = score >= 60 ? C.green : score >= 38 ? C.amber : C.red;
-  const parts = [
-    Number.isFinite(totalSleep) ? `${Math.round(totalSleep * 10) / 10} h asleep` : null,
-    Number.isFinite(deep) ? `${Math.round(deep * 10) / 10} h deep` : null,
-    Number.isFinite(rem) ? `${Math.round(rem * 10) / 10} h REM` : null,
-    Number.isFinite(awake) ? `${Math.round(awake * 10) / 10} h awake` : null,
-  ].filter(Boolean);
-
-  return {
-    date, score, label, color, totalSleep, inBed, deep, rem, core, awake, efficiency,
-    components: { totalScore, efficiencyScore, deepScore, remScore, awakeScore },
-    summary: parts.join(' · '),
-    hasStages: [deep, rem, core, awake, inBed, efficiency].some(Number.isFinite),
-  };
-}
-
-// Recovery score — methodology based on sports science consensus (Buchheit 2014, Plews 2013):
-//   • 7-day rolling mean + SD baseline
-//   • SD-band z-score: score = clamp(50 + zCombined × 15, 0–100)
-//   • Automatically uses a 3-factor formula when sleep data is present,
-//     falls back to 2-factor when it isn't (e.g. watch not worn overnight)
-//
-//   WITH sleep:    HRV 40% + RHR 30% + Sleep 30%  (matches Oura/WHOOP weighting)
-//   WITHOUT sleep: HRV 70% + RHR 30%              (estimate only)
-function legacyComputeRecovery(healthData) {
-  const hrv   = healthData?.hrv       || [];
-  const rhr   = healthData?.restingHr || [];
-  const slp   = healthData?.sleep     || [];
-  const sleepScore = computeSleepScore(healthData);
-
-  const todayHRV   = Number(getLatestReading(hrv)?.value) || 0;
-  const todayRHR   = Number(getLatestReading(rhr)?.value) || 0;
-  const todaySleep = Number(getLatestReading(slp)?.value) || 0;
-
-  const hrv7 = lastNDaysReadings(hrv, 7).map(r => Number(r.value));
-  const rhr7 = lastNDaysReadings(rhr, 7).map(r => Number(r.value));
-  const slp7 = lastNDaysReadings(slp, 7).map(r => Number(r.value));
-
-  if (hrv7.length < 3 || rhr7.length < 3 || !todayHRV || !todayRHR) return null;
-
-  const avg  = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
-  const sdev = (arr, m) => Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
-
-  const mHRV = avg(hrv7);  const sHRV = sdev(hrv7, mHRV) || mHRV * 0.10;
-  const mRHR = avg(rhr7);  const sRHR = sdev(rhr7, mRHR) || mRHR * 0.10;
-
-  const zHRV = (todayHRV - mHRV) / sHRV;  // higher HRV = positive = good
-  const zRHR = (mRHR - todayRHR) / sRHR;  // lower  RHR = positive = good (inverted)
-
-  // Use sleep if Health Auto Export supplied last night's reading. With <3 nights,
-  // it is scored against conservative targets until a personal baseline exists.
-  const hasSleep = !!sleepScore && todaySleep > 0;
-
-  let zCombined, formula;
-  if (hasSleep) {
-    const zSleep = (sleepScore.score - 75) / 15;
-    zCombined = zHRV * 0.40 + zRHR * 0.30 + zSleep * 0.30;
-    formula   = sleepScore.hasStages ? 'hrv+rhr+sleep-quality' : 'hrv+rhr+sleep-duration';
-  } else {
-    zCombined = zHRV * 0.70 + zRHR * 0.30;
-    formula   = 'hrv+rhr';
-  }
-
-  const score = Math.round(clamp(50 + zCombined * 15, 0, 100));
-  const label = score >= 60 ? 'Good' : score >= 38 ? 'Fair' : 'Low';
-  const color = score >= 60 ? C.green : score >= 38 ? C.amber : C.red;
-
-  return {
-    score, label, color, formula,
-    todayHRV, todayRHR, todaySleep: hasSleep ? todaySleep : null, sleepScore,
-    meanHRV:  Math.round(mHRV * 10) / 10,
-    meanRHR:  Math.round(mRHR * 10) / 10,
-    zHRV:     Math.round(zHRV * 10) / 10,
-    zRHR:     Math.round(zRHR * 10) / 10,
-    dataPoints: Math.min(hrv7.length, rhr7.length),
-  };
-}
-
-// Fatigue — measures accumulated workload, NOT the same signals as recovery score.
+// Fatigue measures accumulated workload separately from the HRV-led readiness protocol.
 // 4 independent components from session data:
 //
 //  1. Recent density  (0–35 pts): sessions in the last 4 days
@@ -1436,10 +1307,11 @@ function computeTrendInsight(healthData) {
   return 'HRV is below average and resting HR is elevated. Consider lighter movement or a recovery day.';
 }
 
-// Recovery and sleep scoring now come from the pure domain module. The legacy
-// implementations above remain temporarily as migration reference code.
-const computeSleepScore = computeSleepScoreDomain;
-const computeRecovery = computeRecoveryDomain;
+// Readiness and sleep context now come from the pure health domain module.
+// Apple Health exports SDNN, so this deliberately avoids pretending it is the
+// lnRMSSD measure used in many HRV-guided research protocols.
+const computeSleepProfile = computeSleepProfileDomain;
+const computeRecovery = computeReadinessDomain;
 
 function summarizeWatchEffort(watchData) {
   const matches = watchData?.matches || [];
@@ -1757,7 +1629,7 @@ function recommendExerciseProgression(entry, def, recovery, watchData) {
   const allComfortable = avgRpe === 0 || avgRpe <= 7;
   const hardWatch = effort.status === 'ok' && (effort.label === 'Hard effort' || effort.maxHr >= 150);
   if (painMax >= 3) return { tone: C.red, title: 'Reduce or modify', body: `Pain reached ${painMax}/10 last time. Keep load conservative and adjust range or exercise if symptoms return.`, effort };
-  if (recovery?.score != null && recovery.score < 38) return { tone: C.red, title: 'Hold progression', body: 'Recovery is low today. Keep this exercise light, even if last session looked strong.', effort };
+  if (recovery?.status === 'suppressed') return { tone: C.red, title: 'Hold progression', body: 'Your HRV trend is meaningfully suppressed today. Keep this exercise light, even if last session looked strong.', effort };
   if (hardWatch || avgRpe >= 8.5) return { tone: C.amber, title: 'Maintain today', body: 'Last time looked demanding. Repeat the same load/reps and aim for smoother control before progressing.', effort };
   if (def.unit === 'kg' && allAtTop && allComfortable) return { tone: C.green, title: 'Consider adding load', body: 'You completed the top of the rep range with manageable effort. Add the smallest sensible weight jump if warm-up sets feel good.', effort };
   if (def.repMax && allComfortable) return { tone: C.green, title: 'Add 1 rep', body: 'Last time looked controlled. Try adding 1 rep to one or two sets before increasing weight.', effort };
@@ -1836,24 +1708,6 @@ function timeGreeting() {
   if (h >= 12 && h < 17) return 'Good afternoon';
   if (h >= 17 && h < 21) return 'Good evening';
   return 'Hey';
-}
-
-// SVG circular recovery ring — always caps at 100% visually
-function RecoveryRing({ score, color, label, size = 90 }) {
-  const displayScore = Math.min(score, 100);
-  const r = (size - 16) / 2, cx = size / 2;
-  const circ = 2 * Math.PI * r;
-  const dash = circ * (displayScore / 100);
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block', flexShrink: 0 }}>
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke={C.border} strokeWidth={9} />
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth={9}
-        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cx})`} />
-      <text x={cx} y={cx - 2} textAnchor="middle" fill={color} fontSize={19} fontWeight={800} fontFamily={C.fDisplay}>{displayScore}%</text>
-      <text x={cx} y={cx + 14} textAnchor="middle" fill={C.muted} fontSize={10} fontFamily={C.fMono}>{label}</text>
-    </svg>
-  );
 }
 
 // Gradient training load bar with circular position indicator
@@ -2415,21 +2269,16 @@ function WatchEffortCard({ watchSummary }) {
   );
 }
 
-function ReadinessGauge({ score, label, color }) {
-  const size = 98;
-  const displayScore = Math.min(score || 0, 100);
-  const r = 38;
-  const cx = size / 2;
-  const circ = 2 * Math.PI * r;
-  const dashLen = circ * (displayScore / 100);
+function ReadinessIndicator({ recovery }) {
+  const color = recovery?.color || C.blue;
+  const value = Number.isFinite(recovery?.hrv?.rollingMean) ? recovery.hrv.rollingMean : recovery?.latestHrv;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke={C.border} strokeWidth={8} strokeLinecap="round" />
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke={color || C.green} strokeWidth={8}
-        strokeDasharray={`${dashLen} ${circ}`} strokeLinecap="round" transform={`rotate(135 ${cx} ${cx})`} />
-      <text x={cx} y={cx + 1} textAnchor="middle" fill="#0d1838" fontSize={26} fontWeight={800} fontFamily={C.fDisplay}>{displayScore}%</text>
-      <text x={cx} y={cx + 22} textAnchor="middle" fill={color || C.green} fontSize={13} fontWeight={700} fontFamily={C.fBody}>{label}</text>
-    </svg>
+    <div style={{ width: 108, minHeight: 104, borderRadius: 12, background: color + '12', border: `1px solid ${color}44`, padding: '12px 8px', boxSizing: 'border-box', textAlign: 'center' }}>
+      <div style={{ ...st.label, color, fontSize: 8, marginBottom: 8 }}>Apple HRV</div>
+      <div style={{ fontFamily: C.fDisplay, fontSize: 25, fontWeight: 900, color: C.text, lineHeight: 1 }}>{value != null ? `${Math.round(value * 10) / 10}` : '—'}</div>
+      <div style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted, marginTop: 4 }}>SDNN · ms</div>
+      <div style={{ fontFamily: C.fBody, fontSize: 10, fontWeight: 800, color, lineHeight: 1.15, marginTop: 8 }}>{recovery?.statusLabel || 'No data'}</div>
+    </div>
   );
 }
 
@@ -2441,8 +2290,29 @@ function readinessVerdict(recovery, fatigue, watchSummary) {
     body: 'Log health metrics and workouts to get a recommendation.',
     action: 'Start session',
   };
+  if (recovery.status === 'insufficient') return {
+    title: 'Today: Build your baseline',
+    status: 'Building baseline',
+    color: C.blue,
+    body: 'Keep exporting Apple Health readings consistently. IronLog will make an HRV-led training recommendation once your personal range is established.',
+    action: 'Start session',
+  };
   const highLoad = (fatigue?.level || 0) >= 60 || watchSummary?.hardCount > 0;
-  if (recovery.score >= 60 && highLoad) return {
+  if (recovery.status === 'suppressed') return {
+    title: 'Today: Train lighter',
+    status: 'HRV suppressed',
+    color: C.red,
+    body: 'Your seven-day Apple HRV trend is meaningfully below your personal range. Reduce planned intensity or volume, then use your warm-up and pain signals to decide how much to do.',
+    action: 'Start lighter session',
+  };
+  if (recovery.restingHr?.status === 'elevated') return {
+    title: 'Today: Use a cautious plan',
+    status: 'Resting HR elevated',
+    color: C.amber,
+    body: 'HRV is not suppressed, but resting HR is above your usual range. Keep the warm-up controlled and avoid maximal effort today.',
+    action: 'Start steady session',
+  };
+  if (highLoad) return {
     title: 'Today: Train lighter',
     status: 'High load',
     color: C.red,
@@ -2451,38 +2321,31 @@ function readinessVerdict(recovery, fatigue, watchSummary) {
       : 'Recovery is good, but this week\'s strength load is high. Keep 2-3 reps in reserve.',
     action: 'Start lighter session',
   };
-  if (recovery.score >= 60) return {
+  if (recovery.status === 'elevated' || recovery.status === 'usual') return {
     title: 'Today: Good to train',
-    status: 'Ready',
+    status: recovery.status === 'elevated' ? 'HRV elevated' : 'HRV within usual range',
     color: C.green,
-    body: 'Recovery signals look steady. Train normally and keep form strict.',
+    body: 'Your Apple HRV trend is within or above your personal range. Follow the planned session while respecting your warm-up, RPE, and pain signals.',
     action: 'Start session',
   };
-  if (recovery.score >= 38) return {
-    title: 'Today: Take it steady',
-    status: 'Moderate',
-    color: C.amber,
-    body: 'Recovery is fair. Cap effort and avoid chasing personal bests today.',
-    action: 'Start steady session',
-  };
   return {
-    title: 'Today: Recovery day',
-    status: 'Low recovery',
-    color: C.red,
-    body: 'Recovery is low. Choose rest, mobility, or very light movement.',
-    action: 'Review plan',
+    title: 'Today: Use the warm-up to decide',
+    status: 'Mixed signals',
+    color: C.amber,
+    body: 'The available signals do not point clearly in one direction. Start conservatively and adjust using warm-up quality, RPE, pain, and Watch effort.',
+    action: 'Start steady session',
   };
 }
 
 function readinessChips(recovery, healthData, watchSummary) {
   const chips = [];
-  if (recovery?.zHRV != null) chips.push({ icon: 'activity', text: recovery.zHRV >= 0 ? 'HRV above avg' : 'HRV below avg', color: recovery.zHRV >= 0 ? C.green : C.red });
-  if (recovery?.zRHR != null) chips.push({ icon: 'heart', text: recovery.zRHR >= 0 ? 'RHR down' : 'RHR up', color: recovery.zRHR >= 0 ? C.green : C.red });
-  const sleep = recovery?.sleepScore || computeSleepScore(healthData);
+  if (recovery?.status) chips.push({ icon: 'activity', text: recovery.status === 'suppressed' ? 'HRV suppressed' : recovery.status === 'insufficient' ? 'HRV baseline building' : recovery.status === 'elevated' ? 'HRV elevated' : 'HRV within range', color: recovery.color || C.blue });
+  if (recovery?.restingHr?.status) chips.push({ icon: 'heart', text: recovery.restingHr.status === 'elevated' ? 'RHR elevated' : recovery.restingHr.status === 'lower' ? 'RHR lower' : 'RHR within range', color: recovery.restingHr.status === 'elevated' ? C.amber : C.green });
+  const sleep = recovery?.sleep || computeSleepProfile(healthData);
   chips.push({
     icon: sleep ? 'moon' : 'circle-alert',
-    text: sleep ? `Sleep ${sleep.label.toLowerCase()}` : 'Sleep missing',
-    color: sleep ? sleep.color : C.amber,
+    text: sleep ? (sleep.totalSleep >= 7 ? 'Sleep ≥ 7 h' : 'Sleep < 7 h') : 'Sleep missing',
+    color: sleep ? (sleep.totalSleep >= 7 ? C.green : C.amber) : C.amber,
   });
   if (watchSummary?.hardCount > 0) chips.push({ icon: 'flame', text: 'Watch effort high', color: C.amber });
   return chips.slice(0, 3);
@@ -2494,34 +2357,32 @@ function ReadinessInsightModal({ recovery, fatigue, healthData, watchSummary, on
   const latestHrv = getLatestReading(healthData?.hrv || []);
   const latestRhr = getLatestReading(healthData?.restingHr || []);
   const latestSleep = getLatestReading(healthData?.sleep || []);
-  const sleepScore = recovery?.sleepScore || computeSleepScore(healthData);
+  const sleep = recovery?.sleep || computeSleepProfile(healthData);
   const latestMatch = watchSummary?.latestMatch;
   const rows = [
-    { label: 'Recovery score', value: recovery ? `${recovery.score}% · ${recovery.label}` : 'No recovery data yet', color: recovery?.color || C.muted },
-    { label: 'HRV', value: latestHrv ? `${Math.round(Number(latestHrv.value) * 10) / 10} ms · ${recovery?.zHRV >= 0 ? 'above baseline' : 'below baseline'}` : 'No HRV reading', color: recovery?.zHRV >= 0 ? C.green : C.red },
-    { label: 'Resting HR', value: latestRhr ? `${Math.round(Number(latestRhr.value))} bpm · ${recovery?.zRHR >= 0 ? 'down vs baseline' : 'up vs baseline'}` : 'No resting HR reading', color: recovery?.zRHR >= 0 ? C.green : C.red },
-    { label: 'Sleep quality', value: sleepScore ? `${sleepScore.score}% · ${sleepScore.label}` : 'No sleep reading for last night', color: sleepScore?.color || C.amber },
-    { label: 'Sleep detail', value: sleepScore?.summary || (latestSleep ? `${Math.round(Number(latestSleep.value) * 10) / 10} h tracked` : 'No sleep stages yet'), color: C.muted },
+    { label: 'HRV protocol', value: recovery ? recovery.statusLabel : 'No HRV data yet', color: recovery?.color || C.muted },
+    { label: 'HRV · Apple SDNN', value: latestHrv ? `${Math.round(Number(latestHrv.value) * 10) / 10} ms · ${recovery?.hrv?.rollingMean ? `7-day avg ${Math.round(recovery.hrv.rollingMean * 10) / 10}` : 'latest reading'}` : 'No HRV reading', color: recovery?.color || C.muted },
+    { label: 'Resting HR', value: latestRhr ? `${Math.round(Number(latestRhr.value))} bpm · ${recovery?.restingHr?.status === 'elevated' ? 'elevated' : recovery?.restingHr?.status === 'lower' ? 'lower than usual' : 'context only'}` : 'No resting HR reading', color: recovery?.restingHr?.status === 'elevated' ? C.amber : C.green },
+    { label: 'Sleep duration', value: sleep ? `${Math.round(Number(sleep.totalSleep) * 10) / 10} h · ${sleep.durationStatus}` : 'No sleep reading for last night', color: sleep?.totalSleep >= 7 ? C.green : C.amber },
+    { label: 'Sleep detail', value: sleep?.summary || (latestSleep ? `${Math.round(Number(latestSleep.value) * 10) / 10} h tracked` : 'No sleep stages yet'), color: C.muted },
     { label: 'Watch effort', value: watchSummary?.hardCount > 0 ? `${watchSummary.hardCount} hard matched workout${watchSummary.hardCount === 1 ? '' : 's'} this week` : latestMatch ? 'Latest matched workout was not hard' : 'No matched Watch workout yet', color: watchSummary?.hardCount > 0 ? C.amber : C.muted },
   ];
   const evidenceMeaning = row => {
-    if (row.label === 'Recovery score') return 'IronLog combines HRV, resting heart rate, and sleep quality into a training-readiness signal. A low score means the body is showing more recovery pressure today.';
-    if (row.label === 'HRV') return recovery?.zHRV >= 0
-      ? 'HRV measures beat-to-beat variation. Being above your recent baseline is generally a positive recovery signal.'
-      : 'HRV measures beat-to-beat variation. Being below your recent baseline can indicate greater recovery strain, especially when other signals agree.';
-    if (row.label === 'Resting HR') return recovery?.zRHR >= 0
-      ? 'Resting heart rate is your baseline pulse at rest. A lower-than-usual reading is generally a favourable recovery signal.'
-      : 'Resting heart rate is your baseline pulse at rest. A rise above your recent baseline can accompany fatigue, stress, illness, dehydration, or poor sleep.';
-    if (row.label === 'Sleep quality') return 'Sleep quality combines time asleep, efficiency, deep sleep, REM sleep, and awake time. Good sleep supports recovery, but it cannot fully cancel caution signals from HRV or resting heart rate.';
-    if (row.label === 'Sleep detail') return 'These stages describe how the night was structured: deep sleep supports physical recovery, REM supports mental recovery, and awake time reflects restlessness.';
+    if (row.label === 'HRV protocol') return 'This is an HRV-led protocol using Apple Health SDNN, a seven-day rolling trend, and a personal baseline band. It is not a clinical score.';
+    if (row.label === 'HRV · Apple SDNN') return recovery?.status === 'suppressed'
+      ? 'Apple Health SDNN HRV is meaningfully below your personal range. That can accompany greater physiological strain, but it should be interpreted with sleep, training, and how you feel.'
+      : 'Apple Health SDNN measures variation between normal heartbeats. IronLog compares your trend with your own history rather than comparing you with other people.';
+    if (row.label === 'Resting HR') return recovery?.restingHr?.status === 'elevated'
+      ? 'Resting heart rate is above your usual range. That can accompany fatigue, stress, illness, dehydration, or poor sleep.'
+      : 'Resting heart rate is shown as context alongside the HRV protocol; it does not contribute an arbitrary percentage to a score.';
+    if (row.label === 'Sleep duration') return 'Adults generally need at least seven hours regularly. Sleep duration informs the plan separately and does not override the HRV result.';
+    if (row.label === 'Sleep detail') return 'Deep, core, REM, awake time, and efficiency describe the night. Apple Watch stage estimates are useful context but less certain than total sleep and sleep/wake detection.';
     if (row.label === 'Watch effort') return latestMatch
       ? 'Apple Watch effort adds recent cardiovascular load from a matched workout. A workout that was not hard is not the main reason for today\'s recovery warning.'
       : 'Apple Watch effort can add cardiovascular load context when an exported workout matches an IronLog session.';
     return 'This signal contributes context to today\'s training decision.';
   };
-  const aiRecommendation = verdict.status === 'Low recovery'
-    ? `${verdict.body} The main caution comes from ${latestHrv ? 'HRV below baseline' : 'limited recovery data'}${latestRhr && recovery?.zRHR < 0 ? ' and resting heart rate above baseline' : ''}; good sleep helps, but does not erase those signals.`
-    : `${verdict.body} Use the signal pattern alongside your warm-up, pain, and Watch effort rather than treating one number as a diagnosis.`;
+  const aiRecommendation = `${verdict.body} Use the HRV trend alongside sleep, resting HR, warm-up quality, pain, RPE, and Watch effort rather than treating one number as a diagnosis.`;
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(12,18,32,.42)',
@@ -2591,9 +2452,9 @@ function ReadinessSummaryCard({ recovery, fatigue, healthData, watchSummary, set
   const verdict = readinessVerdict(recovery, fatigue, watchSummary);
   const chips = readinessChips(recovery, healthData, watchSummary);
   const metricsByKey = Object.fromEntries(homeMetricDefs(healthData).map(m => [m.key, m]));
-  const fatigueLevel = Math.min(100, Math.max(0, fatigue?.level || (verdict.status === 'High load' ? 74 : 38)));
+  const fatigueLevel = Math.min(100, Math.max(0, fatigue?.level || (verdict.status === 'High load' ? 74 : recovery?.status === 'suppressed' ? 68 : 30)));
   const filled = Math.max(1, Math.round(fatigueLevel / 14));
-  const primaryOpensInsight = verdict.action === 'Review plan';
+  const primaryOpensInsight = verdict.status === 'HRV suppressed' || verdict.status === 'Building baseline' || verdict.status === 'Resting HR elevated' || verdict.status === 'Mixed signals' || verdict.status === 'High load';
   function handleChipClick(chip) {
     if (chip.text.startsWith('HRV')) return onMetricTap(metricsByKey.hrv);
     if (chip.text.startsWith('RHR')) return onMetricTap(metricsByKey.restingHr);
@@ -2605,8 +2466,8 @@ function ReadinessSummaryCard({ recovery, fatigue, healthData, watchSummary, set
     <div style={{ ...dash.card({ padding: 16, marginBottom: 10 }) }}>
       <div style={{ display: 'grid', gridTemplateColumns: '108px 1fr', gap: 14, alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <ReadinessGauge score={recovery?.score || 0} label={recovery?.label || '—'} color={recovery?.color || C.blue} />
-          <div style={{ ...dash.label, marginTop: 4, letterSpacing: 1.2 }}>Recovery</div>
+          <ReadinessIndicator recovery={recovery} />
+          <div style={{ ...dash.label, marginTop: 4, letterSpacing: 1.2 }}>HRV-led readiness</div>
         </div>
         <div>
           <div style={dash.h}>{verdict.title}</div>
@@ -2867,49 +2728,49 @@ function formatSleepHours(value) {
   return Number.isFinite(value) ? `${Math.round(value * 10) / 10} h` : '—';
 }
 
-function sleepRecommendation(score) {
-  if (!score) return 'Export sleep from Health Auto Export to include sleep in readiness.';
-  if (score.score >= 60) return 'Sleep is supporting training today. Still keep the plan sensible if HRV, resting HR, pain, or Watch effort disagree.';
-  if (score.score >= 38) return 'Sleep is usable but not ideal. Keep the first sets controlled and avoid chasing personal records.';
-  return 'Sleep is a limiting factor today. Treat strength work as technique practice, mobility, or recovery unless your warm-up feels unusually good.';
+function sleepRecommendation(profile) {
+  if (!profile) return 'Export sleep from Health Auto Export to include sleep duration and continuity context.';
+  if (profile.totalSleep < 7) return 'Sleep duration was below the general seven-hour minimum. Keep the first sets controlled and avoid chasing personal records if the warm-up feels poor.';
+  if (Number.isFinite(profile.efficiency) && profile.efficiency < 85) return 'Sleep duration met the general minimum, but continuity was lower. Use the HRV trend and warm-up to decide whether to reduce effort.';
+  return 'Sleep duration and continuity look supportive. Keep the plan sensible if HRV, resting HR, pain, or Watch effort disagree.';
 }
 
 function SleepInsightModal({ healthData, onClose, onAiExplain }) {
-  const score = computeSleepScore(healthData);
-  const tone = score?.color || C.amber;
-  const rows = score ? [
-    ['Sleep score', `${score.score}% · ${score.label}`, score.color],
-    ['Total asleep', formatSleepHours(score.totalSleep), C.text],
-    ['Efficiency', Number.isFinite(score.efficiency) ? `${Math.round(score.efficiency)}%` : '—', C.text],
-    ['Deep sleep', formatSleepHours(score.deep), C.text],
-    ['REM sleep', formatSleepHours(score.rem), C.text],
-    ['Core sleep', formatSleepHours(score.core), C.text],
-    ['Awake time', formatSleepHours(score.awake), Number.isFinite(score.awake) && score.awake > 0.8 ? C.amber : C.text],
+  const profile = computeSleepProfile(healthData);
+  const tone = profile?.totalSleep >= 7 ? C.green : C.amber;
+  const rows = profile ? [
+    ['Total asleep', formatSleepHours(profile.totalSleep), C.text],
+    ['Duration context', profile.durationStatus, profile.totalSleep >= 7 ? C.green : C.amber],
+    ['Efficiency', Number.isFinite(profile.efficiency) ? `${Math.round(profile.efficiency)}%` : '—', C.text],
+    ['Deep sleep', formatSleepHours(profile.deep), C.text],
+    ['REM sleep', formatSleepHours(profile.rem), C.text],
+    ['Core sleep', formatSleepHours(profile.core), C.text],
+    ['Awake time', formatSleepHours(profile.awake), Number.isFinite(profile.awake) && profile.awake > 0.8 ? C.amber : C.text],
   ] : [];
   const sleepEvidenceMeaning = label => ({
-    'Sleep score': 'Overall sleep quality result from duration, efficiency, deep sleep, REM sleep, and awake time.',
     'Total asleep': 'Total time asleep is compared with a recovery-supportive target range.',
+    'Duration context': 'The general adult recommendation is at least seven hours regularly. This is context, not a medical diagnosis.',
     Efficiency: 'Efficiency is the proportion of time in bed spent asleep; higher efficiency usually means less restless time.',
-    'Deep sleep': 'Deep sleep is associated with physical recovery, but one night should not be interpreted in isolation.',
-    'REM sleep': 'REM sleep supports cognitive and emotional recovery; the result is best understood across several nights.',
-    'Core sleep': 'Core sleep is the largest sleep stage and provides the foundation of the night\'s total sleep.',
+    'Deep sleep': 'Deep sleep is useful descriptive context, but Apple Watch stage estimates are less certain than total sleep and sleep/wake detection.',
+    'REM sleep': 'REM sleep is useful descriptive context, but one wearable-estimated night should not determine training.',
+    'Core sleep': 'Core sleep is a descriptive stage estimate that helps show how the night was structured.',
     'Awake time': 'Awake time is a restlessness signal; more awake time can reduce the restorative value of time in bed.',
-  }[label] || 'This sleep measure contributes context to the overall sleep-quality result.');
+  }[label] || 'This sleep measure is supporting context, not a single sleep-quality score.');
   return (
     <HomeInsightShell title="Sleep" tone={tone} onClose={onClose}>
       <div style={{ ...st.card(tone + '10'), borderLeft: `3px solid ${tone}`, marginBottom: 12 }}>
         <div style={{ ...st.label, color: tone, marginBottom: 5 }}>Last night</div>
         <div style={{ fontFamily: C.fDisplay, fontSize: 26, color: C.text, lineHeight: 1 }}>
-          {score ? `${score.score}%` : 'No reading'}
+          {profile ? formatSleepHours(profile.totalSleep) : 'No reading'}
         </div>
         <div style={{ fontSize: 13, color: tone, marginTop: 5 }}>
-          {score ? `${score.label} sleep quality` : 'Sleep export missing'}
+          {profile ? profile.durationStatus : 'Sleep export missing'}
         </div>
       </div>
 
       <div style={{ ...st.card(), marginBottom: 12 }}>
         <div style={{ ...st.label, marginBottom: 8 }}>Sleep detail</div>
-        {score ? rows.map(([label, value, color]) => (
+        {profile ? rows.map(([label, value, color]) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderTop: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 12, color: C.muted }}>{label}</div>
             <div style={{ fontSize: 12, color, textAlign: 'right', fontWeight: 700 }}>{value}</div>
@@ -2924,21 +2785,21 @@ function SleepInsightModal({ healthData, onClose, onAiExplain }) {
       <div style={{ ...st.card(), marginBottom: 12 }}>
         <div style={{ ...st.label, marginBottom: 6 }}>What it means</div>
         <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>
-          Sleep quality uses more than hours asleep. IronLog combines duration, sleep efficiency, deep sleep, REM sleep, and awake time where Apple Health exports those stages.
+          IronLog reports sleep duration, efficiency, and exported stages separately. Duration is compared with the general seven-hour minimum; sleep stages remain descriptive because Apple Watch estimates them indirectly.
         </div>
       </div>
 
       <div style={{ ...st.card(C.blue + '0c'), borderColor: C.blue + '33' }}>
         <div style={{ ...st.label, color: C.blue, marginBottom: 6 }}>Recommendation</div>
-        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>{sleepRecommendation(score)}</div>
+        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>{sleepRecommendation(profile)}</div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
         <AiExplainButton onClick={() => onAiExplain?.({
           mode: 'metric_explanation', focus: 'sleep',
           rulesResult: {
             title: 'Sleep quality',
-            summary: score ? `${score.score}% · ${score.label} sleep quality.` : 'Sleep data is missing.',
-            recommendation: sleepRecommendation(score),
+            summary: profile ? `${formatSleepHours(profile.totalSleep)} asleep · ${profile.durationStatus}.` : 'Sleep data is missing.',
+            recommendation: sleepRecommendation(profile),
             evidence: rows.map(row => ({ signal: row[0], value: row[1], meaning: sleepEvidenceMeaning(row[0]) })),
           },
         })} />
@@ -4725,34 +4586,32 @@ function readinessFactors(healthData, sessions) {
   const fatigue = computeFatigue(healthData, sessions);
   const hrv = healthMetricLatest(healthData, 'hrv');
   const rhr = healthMetricLatest(healthData, 'restingHr');
-  const hrvBase = healthAvg(healthData?.hrv, 7);
-  const rhrBase = healthAvg(healthData?.restingHr, 7);
-  const sleep = computeSleepScore(healthData);
+  const sleep = computeSleepProfile(healthData);
   const factors = [];
-  if (hrv && hrvBase) {
+  if (hrv) {
     const val = Number(hrv.value);
     factors.push({
-      label: 'HRV',
+      label: 'HRV · Apple SDNN',
       value: `${Math.round(val * 10) / 10} ms`,
-      detail: val >= hrvBase ? 'above recent baseline' : 'below recent baseline',
-      color: val >= hrvBase ? C.green : C.amber,
+      detail: recovery?.statusLabel || 'building personal baseline',
+      color: recovery?.color || C.blue,
     });
   }
-  if (rhr && rhrBase) {
+  if (rhr) {
     const val = Number(rhr.value);
     factors.push({
       label: 'Resting HR',
       value: `${Math.round(val)} bpm`,
-      detail: val <= rhrBase ? 'down vs baseline' : 'elevated vs baseline',
-      color: val <= rhrBase ? C.green : C.amber,
+      detail: recovery?.restingHr?.status === 'elevated' ? 'elevated vs usual range' : 'context alongside HRV',
+      color: recovery?.restingHr?.status === 'elevated' ? C.amber : C.green,
     });
   }
   if (sleep) {
     factors.push({
-      label: 'Sleep',
-      value: `${sleep.score}%`,
-      detail: `${sleep.label.toLowerCase()} quality`,
-      color: sleep.color,
+      label: 'Sleep duration',
+      value: `${Math.round(sleep.totalSleep * 10) / 10} h`,
+      detail: sleep.durationStatus,
+      color: sleep.totalSleep >= 7 ? C.green : C.amber,
     });
   }
   if (fatigue) {
@@ -4764,25 +4623,27 @@ function readinessFactors(healthData, sessions) {
     });
   }
   const limiting = factors.find(f => f.color === C.red) || factors.find(f => f.color === C.amber);
-  const summary = recovery
+  const summary = recovery && recovery.status !== 'insufficient'
     ? limiting
       ? `${limiting.label} is the main limiter today. Use this tab to see the trend behind the Home recommendation.`
-      : 'Recovery signals are broadly supportive. Use the detail below to watch for slow changes over time.'
+      : 'The HRV-led protocol is within range. Use sleep, resting HR, training load, pain, and performance as context.'
+    : recovery
+      ? 'Your Apple HRV baseline is still building. Keep exporting consistent readings before using it to change training.'
     : 'Import health metrics to connect training, sleep, and recovery trends.';
   return { recovery, fatigue, factors, summary };
 }
 
 function sleepStageRows(healthData) {
-  const score = computeSleepScore(healthData);
-  if (!score) return { score: null, rows: [] };
+  const profile = computeSleepProfile(healthData);
+  if (!profile) return { profile: null, rows: [] };
   const rows = [
-    { label: 'Total asleep', value: score.totalSleep, unit: 'h', target: 7.5, color: C.blue, detail: 'overall duration' },
-    { label: 'Efficiency', value: score.efficiency, unit: '%', target: 88, color: C.green, detail: 'time asleep while in bed' },
-    { label: 'Deep', value: score.deep, unit: 'h', target: 1.1, color: C.purple, detail: 'physical recovery' },
-    { label: 'REM', value: score.rem, unit: 'h', target: 1.5, color: C.amber, detail: 'mental recovery' },
-    { label: 'Awake', value: score.awake, unit: 'h', target: 0.6, color: C.red, detail: 'restlessness', lowerBetter: true },
+    { label: 'Total asleep', value: profile.totalSleep, unit: 'h', target: 7, color: profile.totalSleep >= 7 ? C.green : C.amber, detail: 'general adult minimum' },
+    { label: 'Efficiency', value: profile.efficiency, unit: '%', target: 85, color: C.green, detail: 'time asleep while in bed' },
+    { label: 'Deep', value: profile.deep, unit: 'h', target: null, color: C.purple, detail: 'descriptive stage estimate' },
+    { label: 'REM', value: profile.rem, unit: 'h', target: null, color: C.amber, detail: 'descriptive stage estimate' },
+    { label: 'Awake', value: profile.awake, unit: 'h', target: null, color: C.red, detail: 'restlessness context' },
   ].filter(r => Number.isFinite(r.value));
-  return { score, rows };
+  return { profile, rows };
 }
 
 function HealthSectionHeader({ label, icon }) {
@@ -4821,8 +4682,8 @@ function HealthFactorGrid({ factors }) {
 }
 
 function SleepBreakdownCard({ healthData }) {
-  const { score, rows } = sleepStageRows(healthData);
-  if (!score) {
+  const { profile, rows } = sleepStageRows(healthData);
+  if (!profile) {
     return (
       <HealthInsightCard title="Sleep quality" subtitle="No sleep reading is available yet." tone={C.amber}>
         <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>Export sleep from Health Auto Export to include duration, stages, awake time, and efficiency in Health.</div>
@@ -4830,20 +4691,15 @@ function SleepBreakdownCard({ healthData }) {
     );
   }
   return (
-    <HealthInsightCard title="Sleep quality" subtitle={score.summary || 'Sleep stages imported from Apple Health.'} tone={score.color}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
-        <RecoveryRing score={score.score} color={score.color} label={score.label} size={82} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.45 }}>
-            Sleep score combines duration, efficiency, deep sleep, REM sleep, and awake time. It helps explain why Home may recommend a lighter or stronger session.
-          </div>
-        </div>
+    <HealthInsightCard title="Sleep context" subtitle={profile.summary || 'Sleep stages imported from Apple Health.'} tone={profile.totalSleep >= 7 ? C.green : C.amber}>
+      <div style={{ ...st.card(profile.totalSleep >= 7 ? C.green + '0c' : C.amber + '0c'), marginBottom: 12 }}>
+        <div style={{ ...st.label, color: profile.totalSleep >= 7 ? C.green : C.amber, marginBottom: 4 }}>Duration</div>
+        <div style={{ fontFamily: C.fDisplay, fontSize: 24, fontWeight: 900, color: C.text }}>{formatSleepHours(profile.totalSleep)}</div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{profile.durationStatus}. Sleep is shown separately from the HRV readiness protocol.</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(row => {
-          const rawPct = row.lowerBetter
-            ? row.target / Math.max(row.value, row.target)
-            : row.value / row.target;
+          const rawPct = row.target ? row.value / row.target : 0.5;
           const pct = Math.max(8, Math.min(100, rawPct * 100));
           const display = row.unit === '%' ? `${Math.round(row.value)}%` : `${Math.round(row.value * 10) / 10} ${row.unit}`;
           return (
@@ -5296,6 +5152,7 @@ export default function App() {
       coachRec,
       allExercises,
       focus: request.focus,
+      maxChars: request.mode === 'weekly_review' ? 18000 : 50000,
     });
     const payload = {
       mode: request.mode || 'metric_explanation',

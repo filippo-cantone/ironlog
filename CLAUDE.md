@@ -232,8 +232,8 @@ Energy check → Warm-up checklist → Exercises (weight/reps/RPE/pain per set) 
 - ✅ PWA / iPhone home screen
 - ✅ Health Auto Export → Supabase pipeline (nightly automation, `ingest-health` Edge Function, `health_metrics` table)
 - ✅ Health tab Body section: charts for HRV, Resting HR, Steps, Active Cal with workout markers, badges, trend arrows
-- ✅ Recovery Dashboard on Home: greeting, recovery ring, fatigue bar, training load, Today's Training, 4-metric strip with area sparklines, Recovery Trends dual-axis chart (7D/30D/90D), Cycling/Strength week cards, Weekly Heatmap, Recent Workouts
-- ✅ Recovery score: adaptive SD-band formula — auto-switches between 2-factor (HRV 70%/RHR 30%) and 3-factor (HRV 40%/RHR 30%/Sleep 30%) depending on whether sleep data is available. Sleep now uses a stage-aware score from total sleep, efficiency, deep sleep, REM sleep, and awake time where exported. See `computeRecovery()`, `computeSleepScore()`, and ROADMAP.md formula block.
+- ✅ Readiness Dashboard on Home: greeting, HRV-led status, fatigue bar, training load, Today's Training, 4-metric strip with area sparklines, Recovery Trends dual-axis chart (7D/30D/90D), Cycling/Strength week cards, Weekly Heatmap, Recent Workouts
+- ✅ Science-first readiness: Apple Health SDNN uses a seven-day rolling trend and personal baseline band; sleep duration/efficiency/stages remain separate context and no composite 0–100 recovery score is displayed. See `computeReadiness()`, `computeSleepProfile()`, and ROADMAP.md.
 
 ---
 
