@@ -235,7 +235,7 @@ cd "path/to/ironlog"
 npm install
 ```
 
-### Every time you change `src/IronLog.jsx`
+### Every time you change a source module under `src/`
 ```bash
 npm run build
 ```
@@ -303,7 +303,7 @@ App data is saved locally first in `localStorage`, then sessions and rides are p
 
 ## Notes for AI Agents
 
-- **Edit `src/IronLog.jsx` only.** Never touch `index.html` — it is overwritten on every build.
+- **Edit source modules under `src/` as needed.** Never touch generated `index.html` files — they are overwritten on every build.
 - **Run `npm run build` after every change** to verify the JSX compiles without errors.
 - **Do not introduce `import` statements** for React, ReactDOM, or any other CDN-loaded library.
 - **Build-time dependencies are acceptable** when they only affect the generated artifact. Runtime dependencies remain deliberately limited to the existing CDN scripts.

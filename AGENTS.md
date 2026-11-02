@@ -63,9 +63,9 @@ A personal fitness tracking PWA for Phill (age 51, male, returning to training a
 This project is worked on by **Claude** (design, spec, review) and **Codex** (implementation, icon generation) and **Phill** (decisions, testing). Follow these rules to avoid conflicts.
 
 1. **Claim your task first.** For any medium or large task, mark it `in progress — [Claude/Codex]` in ROADMAP.md or BUGS.md and commit that claim before writing code.
-2. **Edit only `src/IronLog.jsx`.** Never edit `dist/index.html` or root `index.html` directly — both are overwritten on every build.
+2. **Edit source modules under `src/` as needed.** Never edit `dist/index.html` or root `index.html` directly — both are overwritten on every build.
 3. **Build after every change.** Run `node build.js` — this compiles JSX and writes the output to **both** `dist/index.html` and root `index.html`. GitHub Pages serves from root `index.html`.
-4. **Commit these four files together:** `src/IronLog.jsx`, `dist/index.html`, `index.html`, `version.json`. Never one without the others.
+4. **Commit source changes with the generated deployment files:** include the changed `src/` modules plus `dist/index.html`, `index.html`, and `version.json` whenever a build changes. Never deploy generated files from a different source revision.
 5. **Always push after committing.** Run `git push origin main` immediately after every commit.
 6. **Never force push.** If a push is rejected, pull, rebuild from the merged source, then push.
 7. **Before pushing:** run `git status` and `git log --oneline -3` to confirm what is going up.
@@ -104,7 +104,7 @@ This project is worked on by **Claude** (design, spec, review) and **Codex** (im
 
 ```bash
 npm install          # first time only
-npm run build        # every time src/IronLog.jsx changes
+npm run build        # every time a source module under src/ changes
 ```
 
 Build does four things:
