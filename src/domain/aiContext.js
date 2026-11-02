@@ -158,14 +158,24 @@ export function summarizeSessions(sessions, { allExercises = {}, limit = 60 } = 
 export function summarizeWatchData(watchData = {}) {
   const workouts = Array.isArray(watchData?.workouts) ? watchData.workouts : [];
   const summaries = workouts.map(workout => ({
-    date: normaliseDate(workout.date || workout.startDate || workout.start),
-    durationMinutes: round(asNumber(workout.durationMinutes ?? workout.duration) || 0, 1),
-    activeCalories: round(asNumber(workout.activeCalories ?? workout.activeCal) || 0, 1),
-    averageHeartRate: round(asNumber(workout.averageHeartRate ?? workout.avgHr), 1),
-    peakHeartRate: round(asNumber(workout.peakHeartRate ?? workout.maxHr), 1),
-    sampleCount: Array.isArray(workout.samples) ? workout.samples.length : asNumber(workout.sampleCount) || 0,
-    matchConfidence: String(workout.matchConfidence || workout.confidence || 'unknown').slice(0, 30),
+    date: normaliseDate(workout.date || workout.startDate || workout.start || workout.start_time),
+    durationMinutes: round(
+      asNumber(workout.durationMinutes ?? workout.duration ?? workout.duration_min)
+        ?? (asNumber(workout.watch_duration_sec ?? workout.duration_sec) != null
+          ? asNumber(workout.watch_duration_sec ?? workout.duration_sec) / 60 : null), 1,
+    ),
+    activeCalories: round(asNumber(workout.activeCalories ?? workout.activeCal ?? workout.active_energy_kcal ?? workout.total_energy_kcal), 1),
+    averageHeartRate: round(asNumber(workout.averageHeartRate ?? workout.avgHr ?? workout.avg_heart_rate), 1),
+    peakHeartRate: round(asNumber(workout.peakHeartRate ?? workout.maxHr ?? workout.max_heart_rate), 1),
+    sampleCount: Array.isArray(workout.samples)
+      ? workout.samples.length
+      : asNumber(workout.sampleCount ?? workout.sample_count) || 0,
+    matchConfidence: String(workout.matchConfidence || workout.match_confidence || workout.confidence || 'unknown').slice(0, 30),
   })).filter(row => row.date);
+  const exportedSampleCount = Array.isArray(watchData?.samples) ? watchData.samples.length : 0;
+  if (exportedSampleCount && summaries.every(row => !row.sampleCount) && summaries.length) {
+    summaries[summaries.length - 1].sampleCount = exportedSampleCount;
+  }
   return {
     count: summaries.length,
     matchedCount: summaries.filter(row => row.matchConfidence !== 'unknown').length,

@@ -67,7 +67,7 @@ test('AI context remains bounded for long histories', () => {
 test('health, session, and Watch summaries retain useful aggregates', () => {
   assert.equal(summarizeHealthData(health).hrv.latest, 22);
   assert.equal(summarizeSessions([{ completed: true, date: '2026-11-01', exercises: [{ id: 'x', sets: [{ weight: 10, reps: 5, done: true }] }] }]).totals.volume, 50);
-  assert.equal(summarizeWatchData({ workouts: [{ date: '2026-11-01', duration: 30, activeCal: 200, avgHr: 121, maxHr: 145, sampleCount: 30 }] }).sampleCount, 30);
+  assert.equal(summarizeWatchData({ workouts: [{ start_time: '2026-11-01T08:00:00Z', watch_duration_sec: 1800, active_energy_kcal: 200, avg_heart_rate: 121, max_heart_rate: 145, sample_count: 30 }] }).sampleCount, 30);
 });
 
 test('AI response schema validation and deterministic fallback are safe', () => {
