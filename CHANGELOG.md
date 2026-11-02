@@ -11,6 +11,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Added opt-in first-use disclosure, AI enable/disable setting, local insight cache, deterministic fallback, and low-confidence sparse-data labelling
 - Added Explain with AI actions for readiness, sleep, HRV, resting HR, Watch/workout effort, exercise progression, and Health weekly review
 - Added AI context, privacy, schema, cache, and fallback-policy tests; provider credentials and Edge Function deployment remain setup steps
+- Corrected AI Watch summaries to consume the imported Supabase field names for duration, calories, average/peak heart rate, matching confidence, and sample counts
 
 ## 2026-11-02 — Modularisation foundation (Codex)
 
