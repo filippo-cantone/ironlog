@@ -4,6 +4,10 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
+### Apple Health freshness audit — in progress — Codex — 2026-11-03
+- Audit local import, Supabase restore, and Health Auto Export ingestion for stale or missing readings across all metrics.
+- Make cloud-sync failures visible and preserve newer local imports during cloud restore.
+
 ### Activity and Health Goals — complete — Codex — 2026-11-02
 - ✅ Added Apple Health / Apple Watch activity points with measured Watch intensity first and labelled heart-rate estimates when samples and a personal max-HR setting are available.
 - ✅ Added editable weekly activity goals under Manage → Goals and `il_activity_goals` backup/local persistence.
