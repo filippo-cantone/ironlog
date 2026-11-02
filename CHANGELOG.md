@@ -16,6 +16,9 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Moved stage-aware sleep scoring, recovery scoring, baselines, and health trend classification into the tested health domain module
 - Replaced count-only cloud restore decisions with identity/timestamp comparison so equal-size local/cloud conflicts are not silently overwritten
 - Moved backup creation and file reading into `src/storage/importExport.js` and tightened backup version/shape validation before importing
+- Extracted the PreStart and Health screens behind explicit props and dependency contracts
+- Moved preset/Iron Series exercise definitions and muscle metadata into `src/data/exercises.js`
+- Extracted the font stylesheet loader into `src/ui/FontLoader.jsx`
 
 ## 2026-11-02 — Iron Series week/day picker (Codex)
 

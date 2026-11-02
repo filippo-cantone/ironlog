@@ -15,7 +15,10 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ Phase 3 health step: moved stage-aware sleep scoring, recovery scoring, baselines, and health trend classification into `src/domain/health.js`
 - ✅ Phase 1 sync step: cloud restore now compares record identity and timestamps, preserving equal-size local conflicts instead of silently replacing them
 - ✅ Phase 1 storage step: backup creation/file reading moved to `src/storage/importExport.js`; malformed and unsupported backup versions are rejected before state changes
-- 🔄 Next: extract the Health screen and exercise/stretches data modules, then move the remaining major screens behind the same App state contract
+- ✅ Phase 4 screen step: extracted PreStart and Health screens behind explicit props, callbacks, helper contracts, and UI component dependencies
+- ✅ Phase 3 data step: moved preset/Iron Series exercise definitions and muscle metadata to `src/data/exercises.js`
+- ✅ Phase 2 UI step: extracted the font loader into `src/ui/FontLoader.jsx`
+- 🔄 Next: extract stretches/warmup data, then move History, Manage, Dashboard, and ActiveWorkout behind the same App state contract
 
 ---
 

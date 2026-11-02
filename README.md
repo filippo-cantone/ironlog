@@ -94,8 +94,9 @@ ironlog/
 │   ├── ui/theme.js          ← shared colours, typography, and style tokens
 │   ├── ui/charts/           ← shared chart geometry and metric colour helpers
 │   ├── ui/Nav.jsx           ← shared bottom navigation
-│   ├── screens/             ← extracted Progress and Rides screens (more to follow)
+│   ├── screens/             ← extracted Health, PreStart, Progress, and Rides screens
 │   ├── data/workouts.js     ← canonical A/B/C and Iron Series programmes
+│   ├── data/exercises.js    ← preset/Iron Series exercise and muscle metadata
 │   ├── domain/              ← pure session, health, progression logic (including sleep/recovery scoring)
 │   ├── storage/             ← validated persistence and backup/import helpers
 │   └── integrations/        ← Supabase response and sync helpers
@@ -125,6 +126,10 @@ All colours and font names in a single object. Change colours here to restyle th
 - `EXERCISES` — main exercise library (keyed by ID string)
 - `WORKOUTS` — defines A, B, C workouts (title, exercise IDs, finisher checklist)
 - `src/data/workouts.js` — canonical A/B/C and Iron Series programme definitions used by the app
+- `src/data/exercises.js` — preset/Iron Series exercise definitions and muscle metadata
+- `src/screens/Health.jsx` — Health screen with explicit helper, component, and cloud-import dependencies
+- `src/screens/PreStart.jsx` — pre-workout coaching and safe-swap screen
+- `src/ui/FontLoader.jsx` — runtime font stylesheet loader
 - `PRESET_LIBRARY` — additional exercises not in default workouts but available to add
 
 Both `EXERCISES` and `PRESET_LIBRARY` are merged at runtime:
