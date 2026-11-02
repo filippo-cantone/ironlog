@@ -1,4 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from './runtime.js';
+import sessionDomain from './domain/session.js';
+import progressionDomain from './domain/progression.js';
+import healthDomain from './domain/health.js';
+import storageDomain from './storage/localStore.js';
+import syncDomain from './integrations/supabase.js';
+
+const { migrateSession, migrateSessions } = sessionDomain;
+const { detectPRs, checkOverloadNudges } = progressionDomain;
+const { emptyHealthData, mergeHealthData } = healthDomain;
+const { safeParse, validateBackup } = storageDomain;
+const { shouldRestoreCloud } = syncDomain;
 
 // ═══════════════════════════════════════════════════════════════════════
 // THEME
@@ -955,7 +966,7 @@ async function pullSessions(localSessions) {
       .order('date', { ascending: false });
     if (error || !data) return null;
     // Only restore if cloud has more sessions — guards against iOS localStorage purge
-    if (data.length > localSessions.length) return data.map(r => r.data);
+    if (shouldRestoreCloud(localSessions, data)) return data.map(r => r.data);
   } catch (e) { console.warn('IronLog restore (sessions):', e); }
   return null;
 }
@@ -969,7 +980,7 @@ async function pullRides(localRides) {
       .eq('user_id', IRONLOG_UID)
       .order('created_at', { ascending: false });
     if (error || !data) return null;
-    if (data.length > localRides.length) return data.map(r => r.data);
+    if (shouldRestoreCloud(localRides, data)) return data.map(r => r.data);
   } catch (e) { console.warn('IronLog restore (rides):', e); }
   return null;
 }
@@ -1060,7 +1071,7 @@ async function pushHealthMetrics(healthData) {
 // STORAGE  (localStorage — works in any browser)
 // ═══════════════════════════════════════════════════════════════════════
 async function load(key) {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }
+  try { return safeParse(localStorage.getItem(key), null); }
   catch { return null; }
 }
 async function save(key, val) {
@@ -1145,6 +1156,7 @@ function buildSession(workoutKey, prevSessions, allExercises = EXERCISES, workou
       notes: '',
       completed: false,
       phase: 'energy',
+      currentExerciseIndex: 0,
     };
   }
 
@@ -1187,45 +1199,8 @@ function buildSession(workoutKey, prevSessions, allExercises = EXERCISES, workou
     notes: '',
     completed: false,
     phase: 'energy',
+    currentExerciseIndex: 0,
   };
-}
-
-function detectPRs(newSess, prevSessions, allExercises = EXERCISES) {
-  const prs = [];
-  newSess.exercises.forEach(ex => {
-    const def = allExercises[ex.id] || EXERCISES[ex.id];
-    if (!def || def.unit !== 'kg') return;
-    const newMax = Math.max(...ex.sets.filter(s => s.done).map(s => Number(s.weight) || 0));
-    if (!newMax) return;
-    const prevMax = prevSessions.reduce((mx, sess) => {
-      const pe = sess.exercises?.find(e => e.id === ex.id);
-      if (!pe) return mx;
-      return Math.max(mx, ...pe.sets.filter(s => s.done).map(s => Number(s.weight) || 0));
-    }, 0);
-    if (newMax > prevMax) prs.push({ name: def.name, weight: newMax });
-  });
-  return prs;
-}
-
-function checkOverloadNudges(sess, allExercises = EXERCISES) {
-  const nudges = [];
-  sess.exercises.forEach(ex => {
-    const def = allExercises[ex.id] || EXERCISES[ex.id];
-    if (!def || !def.repMax || def.unit === 'bw' || def.unit === 'band') return;
-    if (!def.defaultReps || def.repMax <= def.defaultReps) return;
-    const doneSets = ex.sets.filter(s => s.done);
-    if (doneSets.length === 0) return;
-    const allHitMax = doneSets.every(s => Number(s.reps) >= def.repMax);
-    if (!allHitMax) return;
-    if (doneSets.some(s => Number(s.pain) >= 3)) return;
-    const rpeValues = doneSets.map(s => Number(s.rpe)).filter(v => !isNaN(v) && v > 0);
-    if (rpeValues.length > 0) {
-      const avgRpe = rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length;
-      if (avgRpe > 8) return;
-    }
-    nudges.push(def.name);
-  });
-  return nudges;
 }
 
 function weekStart() {
@@ -5539,6 +5514,15 @@ function ActiveWorkout({ sessions, activeSession, setActiveSession, onComplete, 
 
   useEffect(() => { setShowDiagram(false); setShowExerciseInsight(false); }, [exIdx]);
 
+  // Persist the current exercise explicitly so a reload resumes where the user was,
+  // even when an earlier exercise still has an intentionally incomplete set.
+  useEffect(() => {
+    if (!session || session.currentExerciseIndex === exIdx) return;
+    const updated = { ...session, currentExerciseIndex: exIdx };
+    setSession(updated);
+    setActiveSession(updated);
+  }, [exIdx]);
+
   function startRest(s = 30) { setRestSecs(s); setRestActive(true); }
   function stopRest() { setRestActive(false); setRestSecs(30); }
 
@@ -8972,7 +8956,7 @@ export default function App() {
         load('il_health_sleep_deep'), load('il_health_sleep_rem'), load('il_health_sleep_core'),
         load('il_health_sleep_awake'), load('il_health_sleep_in_bed'), load('il_health_sleep_efficiency'),
       ]);
-      const localSessions = s || [];
+      const localSessions = migrateSessions(s);
       const localRides    = r || [];
 
       // Attempt cloud restore — only replaces local if cloud has more records
@@ -8987,27 +8971,18 @@ export default function App() {
 
       setSessions(finalSessions);
       setRides(finalRides);
-      if (a)  setActiveSession(a);
+      if (a)  setActiveSession(migrateSession(a));
       if (ce) setCustomExercises(ce);
       if (wc) setWorkoutCustom(wc);
       if (wh) setWorkoutHidden(wh);
 
-      // Cloud health data takes precedence over localStorage cache
-      setHealthData({
-        hrv:       (cloudHealth?.hrv       || hrv       || []),
-        restingHr: (cloudHealth?.restingHr || restingHr || []),
-        steps:     (cloudHealth?.steps     || steps     || []),
-        activeCal: (cloudHealth?.activeCal || activeCal || []),
-        cardio:    (cardio || []),
-        sleep:     (cloudHealth?.sleep     || sleep     || []),
-        bloodOxygen: (cloudHealth?.bloodOxygen || bloodOxygen || []),
-        sleepDeep: (cloudHealth?.sleepDeep || sleepDeep || []),
-        sleepRem: (cloudHealth?.sleepRem || sleepRem || []),
-        sleepCore: (cloudHealth?.sleepCore || sleepCore || []),
-        sleepAwake: (cloudHealth?.sleepAwake || sleepAwake || []),
-        sleepInBed: (cloudHealth?.sleepInBed || sleepInBed || []),
-        sleepEfficiency: (cloudHealth?.sleepEfficiency || sleepEfficiency || []),
-      });
+      const localHealth = {
+        hrv: hrv || [], restingHr: restingHr || [], steps: steps || [], activeCal: activeCal || [],
+        cardio: cardio || [], sleep: sleep || [], bloodOxygen: bloodOxygen || [],
+        sleepDeep: sleepDeep || [], sleepRem: sleepRem || [], sleepCore: sleepCore || [],
+        sleepAwake: sleepAwake || [], sleepInBed: sleepInBed || [], sleepEfficiency: sleepEfficiency || [],
+      };
+      setHealthData(mergeHealthData(cloudHealth, localHealth));
       setWatchData(cloudWatch || { matches: [], workouts: [], samples: [], ecg: [] });
       setSelectedWorkout(nextWorkout(finalSessions));
       setReady(true);
@@ -9050,15 +9025,9 @@ export default function App() {
     if (!file) return;
     setDriveSync(s => ({ ...s, status: 'loading', error: null }));
     try {
-      const data = await importData(file);
-      if (data.sessions !== undefined && !Array.isArray(data.sessions))
-        throw new Error('Invalid backup: sessions must be an array.');
-      if (data.rides !== undefined && !Array.isArray(data.rides))
-        throw new Error('Invalid backup: rides must be an array.');
-      if (data.customExercises !== undefined && !Array.isArray(data.customExercises) && typeof data.customExercises !== 'object')
-        throw new Error('Invalid backup: customExercises is malformed.');
+      const data = validateBackup(await importData(file));
       setActiveSession(null);
-      if (data.sessions)        setSessions(data.sessions);
+      if (data.sessions)        setSessions(migrateSessions(data.sessions));
       if (data.rides)           setRides(data.rides);
       if (data.customExercises) setCustomExercises(data.customExercises);
       if (data.workoutCustom)   setWorkoutCustom(data.workoutCustom);

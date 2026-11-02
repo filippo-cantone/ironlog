@@ -1,6 +1,6 @@
 # IronLog
 
-A personal fitness tracking Progressive Web App (PWA) built for a specific user — a 51-year-old male returning to strength training after ~5 years off. It runs as a single HTML file deployed to GitHub Pages with no backend, no accounts, and no dependencies beyond React loaded via CDN.
+A personal fitness tracking Progressive Web App (PWA) built for a specific user — a 51-year-old male returning to strength training after ~5 years off. It is published as a single generated HTML artifact on GitHub Pages, while the source is gradually being split into testable JavaScript modules. Supabase remains the cloud sync backend and React is still loaded from the runtime CDN.
 
 **Live app:** https://lord-buttock.github.io/ironlog
 
@@ -66,15 +66,15 @@ These are not preferences — they are physical limitations that must be honoure
 
 | Layer | Choice | Reason |
 |---|---|---|
-| UI | React 18 (UMD via cdnjs CDN) | Loaded via `<script>` tag — no bundler or npm at runtime |
-| Language | JSX pre-compiled to plain JS | Babel CLI at build time; client-side Babel blocked by GitHub Pages CSP |
+| UI | React 18 (UMD via cdnjs CDN) | Runtime CDN dependency; source is bundled before deployment |
+| Language | JSX + JavaScript modules | esbuild bundles the source at build time; client-side Babel is not used |
 | Charts | Custom SVG (`MiniLineChart` component) | Recharts caused CSP errors on GitHub Pages |
 | Styling | Inline React style objects | Keeps everything in one file; no CSS to manage |
 | Storage | `localStorage` + Supabase | localStorage for offline-first; Supabase for auto-sync and cross-device restore |
 | Backup | Supabase auto-sync + JSON export / import | Automatic cloud push after every session; manual JSON fallback in Manage |
 | Sync | Supabase (project `bhlbebdmuodscdgcwkyb`) | Sessions and rides auto-pushed on completion; count-based restore on load |
 | Fonts | Google Fonts CDN | Barlow Condensed, Barlow, JetBrains Mono |
-| Hosting | GitHub Pages | Free, single-file deployment, auto-deploys on push |
+| Hosting | GitHub Pages | Free, generated single-file deployment, auto-deploys on push |
 
 ### What Was Tried and Abandoned
 - **Google Apps Script** — file too large (116 KB), `doGet` failed
@@ -88,7 +88,12 @@ These are not preferences — they are physical limitations that must be honoure
 ```
 ironlog/
 ├── src/
-│   └── IronLog.jsx          ← THE ONLY FILE YOU EDIT
+│   ├── IronLog.jsx          ← legacy/main UI module during migration
+│   ├── main.jsx             ← bundle entry point
+│   ├── runtime.js           ← CDN React adapter
+│   ├── domain/              ← pure session, health, progression logic
+│   ├── storage/             ← validated persistence and backup helpers
+│   └── integrations/        ← Supabase response and sync helpers
 ├── dist/
 │   └── index.html           ← compiled output, deployed to GitHub Pages
 ├── build.js                 ← build script (JSX → HTML)
@@ -105,7 +110,7 @@ ironlog/
 
 ## Source File Architecture (`src/IronLog.jsx`)
 
-The entire application lives in one JSX file, organised into sections in this order:
+The remaining legacy UI is still organised inside `src/IronLog.jsx`, but new logic should be placed in the relevant module directory above. The migration is intentionally incremental so the live app remains stable.
 
 ### 1. THEME (`C` object)
 All colours and font names in a single object. Change colours here to restyle the whole app.
@@ -144,7 +149,7 @@ Top-level component. Owns all state, handles persistence, renders the correct sc
 ```js
 const { useState, useEffect, useRef, useCallback } = React;
 ```
-These are destructured at the top of the compiled bundle. The `import` statement in the source file is stripped by `build.js` before compilation.
+`src/runtime.js` adapts these globals for normal source-module imports. The build bundles the source before writing the deployable HTML files.
 
 ---
 
@@ -225,7 +230,7 @@ npm run build
 1. Reads `src/IronLog.jsx`
 2. Strips the React `import` statement (React comes from CDN globals)
 3. Strips the `FontLoader` component (fonts are in the HTML `<head>`)
-4. Compiles JSX → plain JS using Babel CLI
+4. Bundles JSX and JavaScript modules with esbuild
 5. Wraps the output in a full HTML page with CDN script tags, Google Fonts, PWA meta tags, and the embedded base64 app icon
 6. Writes `dist/index.html`
 
@@ -287,7 +292,7 @@ App data is saved locally first in `localStorage`, then sessions and rides are p
 - **Edit `src/IronLog.jsx` only.** Never touch `index.html` — it is overwritten on every build.
 - **Run `npm run build` after every change** to verify the JSX compiles without errors.
 - **Do not introduce `import` statements** for React, ReactDOM, or any other CDN-loaded library.
-- **Do not add npm dependencies** that need to be bundled — there is no bundler. CDN-only or pure JS only.
+- **Build-time dependencies are acceptable** when they only affect the generated artifact. Runtime dependencies remain deliberately limited to the existing CDN scripts.
 - **Respect the medical constraints** in every exercise suggestion or modification — see the User Profile section above.
 - **Keep the single-file architecture.** The entire app is one JSX file by design. Do not split into multiple files or introduce a build system beyond what exists.
 - **Inline styles only** — no CSS files, no CSS-in-JS libraries, no Tailwind.

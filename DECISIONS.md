@@ -1,9 +1,15 @@
 # IronLog — Open Design Decisions
 
+## Decision 0 — Gradual source modularisation ✅ Started 2026-11-02
+
+IronLog will move from one large JSX source file to small JavaScript modules incrementally. The first tranche extracts framework-free session, progression, health, storage, and integration helpers while preserving the existing UI and GitHub Pages deployment artifact.
+
+The build now uses esbuild with `src/main.jsx` as its entry point. It still writes `index.html`, `dist/index.html`, and `version.json`, so the hosting contract and local data format remain unchanged. Screen extraction will follow after the pure logic boundaries are stable and covered by tests.
+
 This document captures features that are planned but not yet implemented, where the best technical approach hasn't been decided. It is intended for review by AI agents and collaborators — feedback, recommendations, and implementation notes are welcome at the bottom of each section.
 
 Read README.md for full project context before commenting. Key constraints:
-- Single HTML file deployed to GitHub Pages (no server, no build pipeline beyond Babel)
+- Single generated HTML file deployed to GitHub Pages (source now bundled at build time)
 - No npm packages that require bundling — CDN or vanilla JS only
 - Storage is currently `localStorage` only
 - The user already has a Supabase project running (`bhlbebdmuodscdgcwkyb`) for a separate app

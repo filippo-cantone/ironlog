@@ -34,7 +34,7 @@ A personal fitness tracking PWA for Phill (age 51, male, returning to training a
 
 - **GitHub repo:** `https://github.com/lord-buttock/ironlog`
 - **Live app:** deployed via GitHub Pages from root `index.html` (and mirrored to `dist/index.html`)
-- **The only file you ever edit:** `src/IronLog.jsx`
+- **Source of truth:** `src/` modules. `src/IronLog.jsx` remains the main UI module during the gradual migration; do not edit generated HTML directly.
 
 ---
 
@@ -84,8 +84,8 @@ This project is worked on by **Claude** (design, spec, review) and **Codex** (im
 
 | Layer | Choice | Notes |
 |---|---|---|
-| UI | React 18 (UMD from cdnjs) | Loaded via `<script>` tag — no bundler |
-| Language | JSX → plain JS | Pre-compiled with Babel CLI at build time |
+| UI | React 18 (UMD from cdnjs) | Loaded via `<script>` tag; source is bundled at build time |
+| Language | JSX + plain JavaScript modules | esbuild bundles the source at build time |
 | Charts | Custom SVG (`MiniLineChart`) | Recharts blocked by GitHub Pages CSP |
 | Styling | Inline styles (React style objects) | All in one file |
 | Storage | `localStorage` | Per-device persistence |
@@ -109,7 +109,7 @@ npm run build        # every time src/IronLog.jsx changes
 
 Build does four things:
 1. Strips React imports (they come from CDN globals)
-2. Compiles JSX → plain JS via Babel
+2. Bundles JSX and JavaScript modules via esbuild
 3. Wraps output with CDN tags, fonts, icon, and PWA meta
 4. Writes the result to **both** `dist/index.html` and root `index.html`
 
@@ -117,7 +117,7 @@ GitHub Pages serves root `index.html`. `.nojekyll` is present in the repo root s
 
 ---
 
-## Source file structure: `src/IronLog.jsx`
+## Source file structure
 
 Key sections in order:
 1. **THEME** — `C` object, all colours and font names
@@ -129,7 +129,9 @@ Key sections in order:
 7. **UTILITIES** — date formatting, timer helpers, `nextWorkout()`, `buildSession()`
 8. **SVG CHART** — `MiniLineChart` component
 9. **Components** — `Dashboard`, `ActiveWorkout`, `SetRow`, `MuscleDiagram`, `History`, `Progress`, `Rides`, `Manage`, `ActiveStretch`
-10. **App root** — `App()` — state, localStorage persistence, renders all screens
+10. **App root** — `App()` — state, persistence wiring, renders all screens
+
+During the gradual migration, new pure logic belongs in `src/domain/`, validated persistence in `src/storage/`, cloud helpers in `src/integrations/`, and the bundled entry point is `src/main.jsx`.
 
 Globals available at runtime (from CDN — do not import):
 ```js

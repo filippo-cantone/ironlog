@@ -1,55 +1,40 @@
 #!/usr/bin/env node
 // IronLog build script
-// Compiles src/IronLog.jsx → dist/index.html (served by GitHub Pages)
+// Bundles src/main.jsx → dist/index.html (served by GitHub Pages)
 // Run with: npm run build
 
-const { execSync } = require('child_process');
 const fs   = require('fs');
 const path = require('path');
+const esbuild = require('esbuild');
 
-const SRC  = path.join(__dirname, 'src', 'IronLog.jsx');
-const TMP  = path.join(__dirname, 'src', '_compiled.js');
 const DIST_DIR = path.join(__dirname, 'dist');
 const OUT_DIST = path.join(DIST_DIR, 'index.html');
 const OUT_ROOT = path.join(__dirname, 'index.html');
 
-// ── 1. Read and prepare source ───────────────────────────────────────
-let src = fs.readFileSync(SRC, 'utf8');
-
-// Strip things that only exist in the React artifact / Claude environment
-src = src.replace(/^import \{ useState.*?from "react";\n/m, '');
-src = src.replace(/^export default function App\(\)/m, 'function App()');
-src = src.replace(/^\s*<FontLoader \/>\n/m, '');
-src = src.replace(
-  /function FontLoader\(\) \{[\s\S]*?return null;\n\}/,
-  '// Fonts loaded in <head>'
-);
-
-fs.writeFileSync(TMP, src, 'utf8');
-
-// ── 2. Compile JSX → plain JS ────────────────────────────────────────
-console.log('Compiling JSX...');
-execSync(`./node_modules/.bin/babel "${TMP}" -o "${TMP}.out.js"`, { stdio: 'inherit' });
-const compiled = fs.readFileSync(`${TMP}.out.js`, 'utf8');
-
-// Clean up temp files
-fs.unlinkSync(TMP);
-fs.unlinkSync(`${TMP}.out.js`);
-
-// ── 3. Build final JS bundle ──────────────────────────────────────────
+// ── 1. Build final JS bundle ──────────────────────────────────────────
 const BUILD_TS = Date.now();
-fs.writeFileSync(path.join(__dirname, 'version.json'), JSON.stringify({ v: BUILD_TS }), 'utf8');
 const FRONT_MUSCLE_SVG = fs.readFileSync(path.join(__dirname, 'assets', 'anatomy', 'front-muscle-map.svg'), 'utf8');
 const REAR_MUSCLE_SVG = fs.readFileSync(path.join(__dirname, 'assets', 'anatomy', 'rear-muscle-map.svg'), 'utf8');
-const prefix = `const { useState, useEffect, useRef, useCallback } = React;\nconst APP_BUILD = ${BUILD_TS};\nconst FRONT_MUSCLE_SVG = ${JSON.stringify(FRONT_MUSCLE_SVG)};\nconst REAR_MUSCLE_SVG = ${JSON.stringify(REAR_MUSCLE_SVG)};\n\n`;
-const suffix = `\nReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));\n`;
-const appJs  = (prefix + compiled + suffix).replace(/<\/script>/g, '<\\/script>');
+const bundle = esbuild.buildSync({
+  entryPoints: [path.join(__dirname, 'src', 'main.jsx')],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: ['es2018'],
+  write: false,
+  banner: {
+    js: `const APP_BUILD = ${BUILD_TS};\nconst FRONT_MUSCLE_SVG = ${JSON.stringify(FRONT_MUSCLE_SVG)};\nconst REAR_MUSCLE_SVG = ${JSON.stringify(REAR_MUSCLE_SVG)};`,
+  },
+  logLevel: 'warning',
+});
+const appJs = bundle.outputFiles[0].text.replace(/<\/script>/g, '<\\/script>');
+fs.writeFileSync(path.join(__dirname, 'version.json'), JSON.stringify({ v: BUILD_TS }), 'utf8');
 
-// ── 4. App icon (base64 PNG, embedded) ────────────────────────────────
+// ── 2. App icon (base64 PNG, embedded) ────────────────────────────────
 // To update the icon: replace assets/app-icon.png with a 180×180 opaque PNG.
 const ICON_B64 = fs.readFileSync(path.join(__dirname, 'assets', 'app-icon.png')).toString('base64');
 
-// ── 5. Assemble HTML ─────────────────────────────────────────────────
+// ── 3. Assemble HTML ─────────────────────────────────────────────────
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>

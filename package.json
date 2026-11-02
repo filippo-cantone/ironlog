@@ -4,13 +4,15 @@
   "description": "Personal fitness tracking app — IronLog",
   "scripts": {
     "build": "node build.js",
-    "watch": "nodemon --watch src/IronLog.jsx --exec 'node build.js'"
+    "watch": "nodemon --watch src --exec 'node build.js'",
+    "test": "node --test tests"
   },
   "devDependencies": {
     "@babel/cli": "^7.24.0",
     "@babel/core": "^7.24.0",
     "@babel/preset-env": "^7.24.0",
     "@babel/preset-react": "^7.24.0",
+    "esbuild": "^0.28.2",
     "nodemon": "^3.1.0"
   }
 }

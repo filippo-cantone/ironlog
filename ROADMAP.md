@@ -6,6 +6,8 @@ Read README.md first for full project context, user profile, medical constraints
 
 ### Architecture refactor — in progress — Codex
 - Modularise IronLog gradually, beginning with safety/data-integrity foundations while preserving the current GitHub Pages deployment.
+- ✅ Phase 1 foundation: module entry point, esbuild bundle, validated backup/storage helpers, session migration metadata, progression modules/tests, health mapping, and cloud cardio restore fix
+- 🔄 Next: extract data/theme/chart primitives, then move screens one at a time behind the same App state contract
 
 ---
 
