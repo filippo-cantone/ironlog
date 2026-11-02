@@ -306,7 +306,7 @@ Provider order is:
 3. Cloudflare Workers AI `@cf/meta/llama-3.1-8b-instruct`
 4. IronLog deterministic explanation
 
-The browser sends a bounded summary to the Supabase Edge Function. Provider credentials remain Edge Function secrets. The summary excludes raw Apple Health exports, ECG readings, raw Watch samples, notes, and set timestamps. The Edge Function advances to the next provider for transient statuses, timeouts, network outages, invalid model output, or provider-specific context/request-shape incompatibilities; authentication and request-validation errors stop the chain. The live function is deployed as version 2.
+The browser sends a bounded summary to the Supabase Edge Function. Provider credentials remain Edge Function secrets. The summary excludes raw Apple Health exports, ECG readings, raw Watch samples, notes, and set timestamps. The Edge Function advances to the next provider for transient statuses, timeouts, network outages, invalid model output, or provider-specific context/request-shape incompatibilities; authentication and request-validation errors stop the chain. The live function is deployed as version 4, with prompts requiring plain-language metric meanings and a reasoned recommendation.
 
 The client validates structured responses, caches recent results in `il_ai_insights`, asks for first-use consent, supports an AI enable/disable setting, and falls back to the deterministic explanation whenever AI is disabled, unavailable, rate-limited, or malformed. Sparse data is labelled low confidence.
 

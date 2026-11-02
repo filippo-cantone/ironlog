@@ -6,6 +6,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 
 ## 2026-11-02 — Multi-provider AI explanation layer (Codex)
 
+- Improved AI explanations so they define each health signal, connect the evidence to the recommendation, and provide a practical reasoned action instead of echoing the rules text; deployed Edge Function version 4
 - Hardened provider fallback for model-specific context/request-shape rejections and alternate OpenAI-compatible response formats; the live Edge Function is deployed as version 2
 - AI fallback modals now show a short service note when the provider chain is unavailable, while keeping IronLog's deterministic guidance visible
 - Added bounded full-history AI context summaries that exclude raw Health Auto Export, ECG, notes, set timestamps, and raw Watch samples

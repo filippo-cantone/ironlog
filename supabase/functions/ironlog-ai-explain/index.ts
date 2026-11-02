@@ -74,9 +74,11 @@ function providerFailureIsRetryable(status, bodyText = '') {
   // Those provider-specific compatibility failures should still reach the
   // configured fallback model. Authentication and validation failures above
   // remain hard failures and do not cascade.
-  if (code === 400 || code === 413) {
-    return /context|token|model|parameter|format|json|length|request shape/i.test(bodyText);
-  }
+  // The Edge Function has already validated the IronLog request before this
+  // point. Treat provider-level 400/413 responses as model compatibility or
+  // context-limit failures so a configured fallback can still help. Provider
+  // authentication and explicit validation statuses remain hard failures.
+  if (code === 400 || code === 413) return true;
   return false;
 }
 
@@ -91,6 +93,9 @@ function buildMessages(payload) {
         'Explain the provided fitness summary in plain, calm language. Do not diagnose or provide emergency medical advice.',
         'The rulesResult is authoritative for recovery, progression, pain, and medical-safety decisions. You may explain it, but you must not override it.',
         'Do not invent values, trends, workouts, or causes. Call out missing or sparse data in limitations.',
+        'Write for a non-expert. The summary must explain what the numbers mean, mention the most important signals, and connect them to the result.',
+        'For every available evidence item, explain what the signal measures, whether this reading is favourable or cautionary, and why it matters today. Never write generic text such as "Used by IronLog readiness rules."',
+        'The recommendation must include a practical action and a short reason. Do not copy the rulesResult summary or recommendation word for word.',
         'Return JSON only with: title, summary, evidence (array of {signal,value,meaning}), recommendation, limitations (array), confidence (high|medium|low), generatedAt.',
       ].join(' '),
     },

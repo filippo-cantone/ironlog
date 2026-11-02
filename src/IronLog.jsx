@@ -2504,6 +2504,24 @@ function ReadinessInsightModal({ recovery, fatigue, healthData, watchSummary, on
     { label: 'Sleep detail', value: sleepScore?.summary || (latestSleep ? `${Math.round(Number(latestSleep.value) * 10) / 10} h tracked` : 'No sleep stages yet'), color: C.muted },
     { label: 'Watch effort', value: watchSummary?.hardCount > 0 ? `${watchSummary.hardCount} hard matched workout${watchSummary.hardCount === 1 ? '' : 's'} this week` : latestMatch ? 'Latest matched workout was not hard' : 'No matched Watch workout yet', color: watchSummary?.hardCount > 0 ? C.amber : C.muted },
   ];
+  const evidenceMeaning = row => {
+    if (row.label === 'Recovery score') return 'IronLog combines HRV, resting heart rate, and sleep quality into a training-readiness signal. A low score means the body is showing more recovery pressure today.';
+    if (row.label === 'HRV') return recovery?.zHRV >= 0
+      ? 'HRV measures beat-to-beat variation. Being above your recent baseline is generally a positive recovery signal.'
+      : 'HRV measures beat-to-beat variation. Being below your recent baseline can indicate greater recovery strain, especially when other signals agree.';
+    if (row.label === 'Resting HR') return recovery?.zRHR >= 0
+      ? 'Resting heart rate is your baseline pulse at rest. A lower-than-usual reading is generally a favourable recovery signal.'
+      : 'Resting heart rate is your baseline pulse at rest. A rise above your recent baseline can accompany fatigue, stress, illness, dehydration, or poor sleep.';
+    if (row.label === 'Sleep quality') return 'Sleep quality combines time asleep, efficiency, deep sleep, REM sleep, and awake time. Good sleep supports recovery, but it cannot fully cancel caution signals from HRV or resting heart rate.';
+    if (row.label === 'Sleep detail') return 'These stages describe how the night was structured: deep sleep supports physical recovery, REM supports mental recovery, and awake time reflects restlessness.';
+    if (row.label === 'Watch effort') return latestMatch
+      ? 'Apple Watch effort adds recent cardiovascular load from a matched workout. A workout that was not hard is not the main reason for today\'s recovery warning.'
+      : 'Apple Watch effort can add cardiovascular load context when an exported workout matches an IronLog session.';
+    return 'This signal contributes context to today\'s training decision.';
+  };
+  const aiRecommendation = verdict.status === 'Low recovery'
+    ? `${verdict.body} The main caution comes from ${latestHrv ? 'HRV below baseline' : 'limited recovery data'}${latestRhr && recovery?.zRHR < 0 ? ' and resting heart rate above baseline' : ''}; good sleep helps, but does not erase those signals.`
+    : `${verdict.body} Use the signal pattern alongside your warm-up, pain, and Watch effort rather than treating one number as a diagnosis.`;
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(12,18,32,.42)',
@@ -2559,8 +2577,8 @@ function ReadinessInsightModal({ recovery, fatigue, healthData, watchSummary, on
             rulesResult: {
               title: verdict.title,
               summary: verdict.body,
-              recommendation: verdict.body,
-              evidence: rows.map(row => ({ signal: row.label, value: row.value, meaning: 'Used by IronLog readiness rules.' })),
+              recommendation: aiRecommendation,
+              evidence: rows.map(row => ({ signal: row.label, value: row.value, meaning: evidenceMeaning(row) })),
             },
           })} />
         </div>
@@ -2868,6 +2886,15 @@ function SleepInsightModal({ healthData, onClose, onAiExplain }) {
     ['Core sleep', formatSleepHours(score.core), C.text],
     ['Awake time', formatSleepHours(score.awake), Number.isFinite(score.awake) && score.awake > 0.8 ? C.amber : C.text],
   ] : [];
+  const sleepEvidenceMeaning = label => ({
+    'Sleep score': 'Overall sleep quality result from duration, efficiency, deep sleep, REM sleep, and awake time.',
+    'Total asleep': 'Total time asleep is compared with a recovery-supportive target range.',
+    Efficiency: 'Efficiency is the proportion of time in bed spent asleep; higher efficiency usually means less restless time.',
+    'Deep sleep': 'Deep sleep is associated with physical recovery, but one night should not be interpreted in isolation.',
+    'REM sleep': 'REM sleep supports cognitive and emotional recovery; the result is best understood across several nights.',
+    'Core sleep': 'Core sleep is the largest sleep stage and provides the foundation of the night\'s total sleep.',
+    'Awake time': 'Awake time is a restlessness signal; more awake time can reduce the restorative value of time in bed.',
+  }[label] || 'This sleep measure contributes context to the overall sleep-quality result.');
   return (
     <HomeInsightShell title="Sleep" tone={tone} onClose={onClose}>
       <div style={{ ...st.card(tone + '10'), borderLeft: `3px solid ${tone}`, marginBottom: 12 }}>
@@ -2912,7 +2939,7 @@ function SleepInsightModal({ healthData, onClose, onAiExplain }) {
             title: 'Sleep quality',
             summary: score ? `${score.score}% · ${score.label} sleep quality.` : 'Sleep data is missing.',
             recommendation: sleepRecommendation(score),
-            evidence: rows.map(row => ({ signal: row[0], value: row[1], meaning: 'Included in IronLog sleep scoring where available.' })),
+            evidence: rows.map(row => ({ signal: row[0], value: row[1], meaning: sleepEvidenceMeaning(row[0]) })),
           },
         })} />
       </div>
