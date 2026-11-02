@@ -8,6 +8,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 
 - Added a bundled `src/main.jsx` entry point and framework-free domain, storage, health, and Supabase helper modules while preserving the GitHub Pages HTML outputs
 - Added migration/validation tests, explicit active-session exercise metadata, and fixed cloud cardio data being ignored during startup restore
+- Extracted shared theme and style tokens into `src/ui/theme.js` while preserving the existing UI
 
 ## 2026-11-02 — Iron Series week/day picker (Codex)
 

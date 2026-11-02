@@ -91,6 +91,7 @@ ironlog/
 │   ├── IronLog.jsx          ← legacy/main UI module during migration
 │   ├── main.jsx             ← bundle entry point
 │   ├── runtime.js           ← CDN React adapter
+│   ├── ui/theme.js          ← shared colours, typography, and style tokens
 │   ├── domain/              ← pure session, health, progression logic
 │   ├── storage/             ← validated persistence and backup helpers
 │   └── integrations/        ← Supabase response and sync helpers
