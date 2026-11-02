@@ -10,6 +10,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Added migration/validation tests, explicit active-session exercise metadata, and fixed cloud cardio data being ignored during startup restore
 - Extracted shared theme and style tokens into `src/ui/theme.js` while preserving the existing UI
 - Extracted shared smooth-chart geometry and metric colour classification into `src/ui/charts/metrics.js`, with a focused regression test
+- Extracted the bottom navigation into `src/ui/Nav.jsx` with explicit theme and icon dependencies
 
 ## 2026-11-02 — Iron Series week/day picker (Codex)
 
