@@ -3,6 +3,7 @@
 const WORKOUTS = {
   A: {
     title: 'Push — Chest · Shoulders · Triceps',
+    equipment: ['Barbell + rack', 'Bench', 'Dumbbells', 'Resistance band'],
     exercises: ['bb_flat_bench', 'p_db_fly', 'p_db_shoulder_press', 'p_lateral_raise', 'p_rear_delt_fly', 'p_band_ext_rot', 'p_close_grip_bench', 'p_tricep_pushdown'],
     finisher: [
       { id: 'fin_wall_slides', text: 'Wall slides — 2 × 6 slow (pain-free only)' },
@@ -11,6 +12,7 @@ const WORKOUTS = {
   },
   B: {
     title: 'Pull — Back · Biceps · Hinge',
+    equipment: ['Kettlebell', 'Dumbbells', 'Bench', 'Resistance band'],
     exercises: ['kb_deadlift', 'cs_db_row', 'reverse_fly', 'face_pull', 'p_straight_arm_pd', 'p_db_bicep_curl', 'p_hammer_curl'],
     finisher: [
       { id: 'fin_ham_floss', text: 'Hamstring floss (band, lying) — 45 sec each side' },
@@ -19,6 +21,7 @@ const WORKOUTS = {
   },
   C: {
     title: 'Legs + Core',
+    equipment: ['Dumbbells or kettlebell', 'Bench', 'Swiss ball', 'Exercise mat', 'Resistance band'],
     exercises: ['goblet_squat', 'p_sumo_squat', 'rdl', 'hip_thrust', 'reverse_lunge', 'sb_ham_curl', 'p_cable_kickback', 'calf_raises', 'p_dead_bug', 'p_plank', 'pallof_press', 'farmers_walk'],
     finisher: [
       { id: 'fin_ext_rotation', text: 'Band external rotation — 2 × 10 each side' },

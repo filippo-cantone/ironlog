@@ -3127,6 +3127,24 @@ function WorkoutPlanCard({ sessions, activeSession, selectedWorkout, setSelected
         </div>
       </button>
 
+      {wkt.equipment?.length > 0 && (
+        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 12 }}>
+          <div style={{ ...st.label, fontSize: 10, color: C.muted, marginBottom: 6 }}>You'll need</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {wkt.equipment.map(item => (
+              <span key={item} style={{
+                display: 'inline-flex', alignItems: 'center',
+                background: C.dim, border: `1px solid ${C.border}`,
+                borderRadius: 8, padding: '4px 9px',
+                fontSize: 11, color: C.text, fontFamily: C.fMono,
+              }}>
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {showExercises && (
         <div style={{ marginTop: 14 }}>
           <div style={{ marginBottom: 8 }}>

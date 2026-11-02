@@ -142,6 +142,9 @@ test('chart primitives produce smooth paths and meaningful status colours', () =
 
 test('workout catalogue exposes the full A/B/C split and selectable Iron Series days', () => {
   assert.deepEqual(Object.keys(workoutData.WORKOUTS), ['A', 'B', 'C']);
+  assert.deepEqual(workoutData.WORKOUTS.A.equipment, ['Barbell + rack', 'Bench', 'Dumbbells', 'Resistance band']);
+  assert.ok(workoutData.WORKOUTS.B.equipment.includes('Kettlebell'));
+  assert.ok(workoutData.WORKOUTS.C.equipment.includes('Swiss ball'));
   assert.equal(workoutData.IRON_WORKOUTS.length, 30);
   assert.equal(workoutData.IRON_WORKOUTS.find(day => day.day === 17)?.title, 'Complete Upper Body');
   assert.ok(workoutData.IRON_WORKOUTS.find(day => day.day === 17)?.exercises.length > 0);

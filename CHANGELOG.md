@@ -2,6 +2,10 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-03 — Show equipment in split workout previews (Codex)
+
+- Added “You’ll need” equipment chips to the collapsed A/B/C selected-workout preview, matching the existing Iron Series workout preview pattern
+
 ## 2026-11-03 — Distinguish the active Done state (Codex)
 
 - Corrected the workout set control so the button turns green immediately when `Start` is tapped and changes to `Done`, rather than only changing colour after the set is completed
