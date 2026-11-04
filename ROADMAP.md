@@ -4,6 +4,11 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
+### End-of-workout symptom note review — in progress — Codex — 2026-11-04
+- Add a bounded review of exercise notes, logged pain, and repeated symptom patterns after workout completion.
+- Keep the rules engine and medical safety boundaries authoritative; AI may explain patterns and suggest next steps, but must not diagnose.
+- Keep notes out of general AI context unless the user explicitly requests this review.
+
 ### Apple Health freshness audit — complete — Codex — 2026-11-03
 - ✅ Audited current Supabase dates and values for every stored Health metric and identified the missing sleep block in the latest server capture.
 - ✅ Local/cloud health restore now merges readings by date, and local imported values win same-day conflicts.
