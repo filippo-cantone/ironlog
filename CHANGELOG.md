@@ -2,6 +2,12 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-05 — Label stale daily Health readings (Codex)
+
+- Fixed [BUG-015](BUGS.md): Home metric cards no longer present a previous day's reading as today's result when Health Auto Export omits the current-day metric
+- Stale readings now show their actual date, and stale step totals no longer display or evaluate against today's 8,000-step target
+- Detail modals explain that today's export is missing and point to the relevant Health Auto Export setting
+
 ## 2026-11-05 — Automatic overnight cloud refresh (Codex)
 
 - Fixed startup restoration so fresh same-day cloud readings take precedence over stale local cache values

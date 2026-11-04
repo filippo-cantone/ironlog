@@ -1225,6 +1225,15 @@ const importData = readBackup;
 function getLatestReading(readings) {
   return readings?.length ? readings[readings.length - 1] : null;
 }
+
+function healthReadingDate(reading) {
+  return reading?.date ? String(reading.date).slice(0, 10) : '';
+}
+
+function healthReadingIsCurrentDay(reading) {
+  return healthReadingDate(reading) === localDateStr(new Date());
+}
+
 function rollingAvg(readings, days = 14) {
   const recent = lastNDaysReadings(readings, days);
   if (!recent.length) return null;
@@ -2676,8 +2685,14 @@ function AiInsightModal({ state, onClose, onRetry }) {
   );
 }
 
-function metricInsightCopy(metric, latest, base, caption) {
+function metricInsightCopy(metric, latest, base, caption, isCurrentDay = true) {
   const val = Number(latest?.value);
+  if (latest && !isCurrentDay) return {
+    meaning: `This is the latest available ${metric.title.toLowerCase()} reading, dated ${fmtHealthDate(healthReadingDate(latest))}. Today's export does not contain a newer value, so it should not be treated as today's total.`,
+    recommendation: metric.key === 'steps'
+      ? 'Check that Step Count is enabled in Health Auto Export and run another export before judging today\'s movement against your target.'
+      : 'Wait for a current-day export before using this metric as today\'s signal.',
+  };
   if (metric.key === 'hrv') return {
     meaning: 'HRV reflects how recovered your nervous system looks compared with your recent baseline. Lower than usual can mean more recovery pressure.',
     recommendation: val && base && val < base ? 'Keep intensity conservative today and avoid chasing personal records.' : 'HRV is not limiting today. Still pair it with resting HR, sleep, pain, and Watch effort.',
@@ -2703,10 +2718,13 @@ function metricInsightCopy(metric, latest, base, caption) {
 function HomeMetricInsightModal({ metric, healthData, onClose, onAiExplain }) {
   const data = metric?.data || [];
   const latest = getLatestReading(data);
+  const latestDate = healthReadingDate(latest);
+  const isCurrentDay = healthReadingIsCurrentDay(latest);
   const base = rollingAvg(data, 7);
   const val = Number(latest?.value);
   let caption = 'no data';
-  if (metric?.target && Number.isFinite(val)) caption = val >= metric.target ? 'goal hit' : 'below target';
+  if (latest && !isCurrentDay) caption = `not exported today · last ${fmtHealthDate(latestDate)}`;
+  else if (metric?.target && Number.isFinite(val)) caption = val >= metric.target ? 'goal hit' : 'below target';
   else if (base && Number.isFinite(val) && metric?.higherBetter === true) caption = val >= base ? 'above 7-day baseline' : 'below 7-day baseline';
   else if (base && Number.isFinite(val) && metric?.higherBetter === false) caption = val <= base ? 'improving vs baseline' : 'above 7-day baseline';
   else if (base && Number.isFinite(val) && metric?.key === 'activeCal') {
@@ -2716,14 +2734,16 @@ function HomeMetricInsightModal({ metric, healthData, onClose, onAiExplain }) {
     else caption = 'very active day';
   }
   else if (base && Number.isFinite(val)) caption = val >= base ? 'above 7-day average' : 'below 7-day average';
-  const copy = metricInsightCopy(metric, latest, base, caption);
+  const copy = metricInsightCopy(metric, latest, base, caption, isCurrentDay);
   const display = !latest ? 'No reading' : metric.key === 'steps'
     ? `${Math.round(val).toLocaleString()} steps`
     : `${Math.round(val * 10) / 10}${metric.unit ? ` ${metric.unit}` : ''}`;
   return (
     <HomeInsightShell title={metric.title} tone={metric.color} onClose={onClose}>
       <div style={{ ...st.card(metric.color + '10'), borderLeft: `3px solid ${metric.color}`, marginBottom: 12 }}>
-        <div style={{ ...st.label, color: metric.color, marginBottom: 5 }}>Today</div>
+        <div style={{ ...st.label, color: metric.color, marginBottom: 5 }}>
+          {latest && !isCurrentDay ? `Latest reading · ${fmtHealthDate(latestDate)}` : 'Today'}
+        </div>
         <div style={{ fontFamily: C.fDisplay, fontSize: 26, color: C.text, lineHeight: 1 }}>{display}</div>
         <div style={{ fontSize: 13, color: metric.color, marginTop: 5 }}>{caption}</div>
       </div>
@@ -2960,10 +2980,13 @@ function DailySignalsStrip({ healthData, onMetricTap }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {metricDefs.map((m, idx) => {
           const latest = getLatestReading(m.data);
+          const latestDate = healthReadingDate(latest);
+          const isCurrentDay = healthReadingIsCurrentDay(latest);
           const base = rollingAvg(m.data, 7);
           const val = Number(latest?.value);
           let caption = 'no data';
-          if (m.target && val) caption = val >= m.target ? 'goal hit' : 'low today';
+          if (latest && !isCurrentDay) caption = `last ${fmtHealthDate(latestDate)}`;
+          else if (m.target && val) caption = val >= m.target ? 'goal hit' : 'low today';
           else if (base && val && m.higherBetter === true) caption = val >= base ? 'above 7d avg' : 'below avg';
           else if (base && val && m.higherBetter === false) caption = val <= base ? 'improving' : 'above avg';
           else if (base && val && m.key === 'activeCal') {
@@ -2974,10 +2997,10 @@ function DailySignalsStrip({ healthData, onMetricTap }) {
           }
           else if (base && val) caption = val >= base ? 'above avg' : 'below avg';
           const value = !latest ? '—' : m.key === 'steps'
-            ? `${Math.round(val).toLocaleString()} / 8k`
+            ? `${Math.round(val).toLocaleString()}${isCurrentDay ? ' / 8k' : ''}`
             : `${val % 1 === 0 ? val : Math.round(val * 10) / 10}`;
           return (
-            <button key={m.key} onClick={() => onMetricTap && onMetricTap(m)} style={{
+            <button key={m.key} title={latest && !isCurrentDay ? `Latest ${m.title.toLowerCase()} reading: ${fmtHealthDate(latestDate)}. Today's export is not available.` : undefined} onClick={() => onMetricTap && onMetricTap(m)} style={{
               padding: '10px 9px 8px', border: 'none', borderLeft: idx ? `1px solid ${C.border}` : 'none',
               minWidth: 0, background: 'transparent', textAlign: 'left', cursor: 'pointer',
             }}>
