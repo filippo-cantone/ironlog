@@ -137,6 +137,7 @@ export default function Dashboard({ sessions, rides, setView, activeSession, sel
         <TrendInsightModal healthData={hd} trendDays={trendDays} onClose={() => setHomeInsight(null)} onAiExplain={onAiExplain} />
       )}
       {hasHealthData && <DailySignalsStrip healthData={hd} onMetricTap={metric => setHomeInsight({ type: 'metric', metric })} />}
+      {activitySummary && <ActivityBalanceCard summary={activitySummary} onOpen={() => setView('health')} theme={themeProps} />}
       {hasHealthData && (hd.hrv?.length > 1 || hd.restingHr?.length > 1) && (
         <RecoveryTrendCard healthData={hd} trendDays={trendDays} setTrendDays={setTrendDays} onTrendTap={() => setHomeInsight({ type: 'trend' })} />
       )}
@@ -162,7 +163,6 @@ export default function Dashboard({ sessions, rides, setView, activeSession, sel
           </div>
         ))}
       </div>
-      {activitySummary && <ActivityBalanceCard summary={activitySummary} onOpen={() => setView('health')} theme={themeProps} />}
       <ThisWeekSummaryCard sessions={sessions} rides={rides} watchSummary={watchSummary} />
 
       {/* ── Weekly Activity + Recent Workouts side by side ── */}

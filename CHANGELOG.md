@@ -2,6 +2,10 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-04 — Reposition Activity Balance (Codex)
+
+- Moved Activity Balance above Recovery Trend on Home so activity volume is visible before the recovery trend detail
+
 ## 2026-11-04 — Fix local weekday highlighting (Codex)
 
 - Fixed the Home week strip using UTC date keys, which could highlight the wrong weekday around local midnight in Melbourne
