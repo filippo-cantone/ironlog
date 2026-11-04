@@ -14,6 +14,11 @@ Format for commits: `Fix BUG-NNN: short description`
 
 ## Fixed
 
+### BUG-014 [FIXED] Overnight Apple Health export was not refreshed into an open app
+**Fixed:** 2026-11-05 by Codex
+**Detail:** Health Auto Export was reaching Supabase, but an already-open PWA had no focus/visibility refresh. On startup, stale local same-day readings could also overwrite the fresh cloud value during the merge.
+**Fix applied:** Startup and explicit Sync now prefer cloud readings for matching dates; the app refreshes on focus, visibility return, and a 15-minute interval while open.
+
 ### BUG-013 [FIXED] New Apple Health imports were hidden by stale cloud data
 **Fixed:** 2026-11-03 by Codex
 **Detail:** Startup used any non-empty Supabase metric array in preference to local data, so newer local exports could disappear after reload. Bulk and single-metric imports also reported cloud sync success without checking the Supabase response.

@@ -8,6 +8,7 @@ Read README.md first for full project context, user profile, medical constraints
 - ✅ The visible Sync now action pulls newly received Apple Health and Apple Watch exports into the open app.
 - ✅ Explicit cloud refreshes prefer cloud values for same-day readings so stale cached values cannot mask a fresh export.
 - ✅ Home weekday highlighting now uses local calendar dates consistently.
+- ✅ Startup, app return, and periodic refresh now pull overnight Health Auto Export data automatically.
 
 ### End-of-workout symptom note review — complete — Codex — 2026-11-04
 - ✅ Added a bounded local review of exercise notes, logged pain, and repeated body-area language after workout completion.

@@ -5090,6 +5090,7 @@ export default function App() {
 
   // Keep a ref to current data so export always uses the latest state
   const dataRef = useRef({});
+  const cloudRefreshRef = useRef(false);
 
   const allExercises = { ...EXERCISES, ...PRESET_LIBRARY, ...IRON_EXERCISES, ...customExercises };
   const coachRec = computeCoachRecommendation(sessions, rides, selectedWorkout);
@@ -5102,6 +5103,34 @@ export default function App() {
   useEffect(() => {
     dataRef.current = { sessions, rides, customExercises, workoutCustom, activityGoals, healthData };
   }, [sessions, rides, customExercises, workoutCustom, activityGoals, healthData]);
+
+  const refreshCloudData = useCallback(async ({ pushLocal = false } = {}) => {
+    if (!db || activeSession || cloudRefreshRef.current) return false;
+    cloudRefreshRef.current = true;
+    setDriveSync(s => ({ ...s, cloudStatus: 'syncing', error: null }));
+    try {
+      const [cloudHealth, cloudWatch] = await Promise.all([
+        pullHealthMetrics(),
+        pullWatchWorkouts(),
+      ]);
+      if (pushLocal) {
+        const { sessions: cur = [], rides: curRides = [] } = dataRef.current;
+        await Promise.all([
+          ...cur.map(pushSession),
+          ...curRides.map(pushRide),
+        ]);
+      }
+      if (cloudHealth) setHealthData(prev => mergeHealthData(cloudHealth, prev, { preferCloud: true }));
+      if (cloudWatch) setWatchData(cloudWatch);
+      setDriveSync(s => ({ ...s, cloudStatus: 'ok', lastCloudSync: new Date().toISOString(), error: null }));
+      return Boolean(cloudHealth || cloudWatch);
+    } catch (e) {
+      setDriveSync(s => ({ ...s, cloudStatus: 'error', error: e?.message || 'Cloud refresh failed.' }));
+      return false;
+    } finally {
+      cloudRefreshRef.current = false;
+    }
+  }, [activeSession]);
 
   useEffect(() => {
     (async () => {
@@ -5142,13 +5171,35 @@ export default function App() {
         sleepDeep: sleepDeep || [], sleepRem: sleepRem || [], sleepCore: sleepCore || [],
         sleepAwake: sleepAwake || [], sleepInBed: sleepInBed || [], sleepEfficiency: sleepEfficiency || [],
       };
-      setHealthData(mergeHealthData(cloudHealth, localHealth));
+      // Cloud is authoritative when the same calendar date exists in both
+      // stores; otherwise an old local reading can hide the overnight export.
+      setHealthData(mergeHealthData(cloudHealth, localHealth, { preferCloud: true }));
       setActivityGoals(normaliseGoals(savedGoals));
       setWatchData(cloudWatch || { matches: [], workouts: [], samples: [], ecg: [] });
+      if (cloudHealth || cloudWatch) {
+        setDriveSync(s => ({ ...s, cloudStatus: 'ok', lastCloudSync: new Date().toISOString(), error: null }));
+      }
       setSelectedWorkout(nextWorkout(finalSessions));
       setReady(true);
     })();
   }, []);
+
+  // Refresh when returning to the app and periodically while it remains open.
+  // This covers the overnight Health Auto Export without requiring a reload.
+  useEffect(() => {
+    if (!ready) return undefined;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshCloudData();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    const timer = window.setInterval(refreshWhenVisible, 15 * 60 * 1000);
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.clearInterval(timer);
+    };
+  }, [ready, refreshCloudData]);
 
   useEffect(() => {
     fetch('version.json?t=' + Date.now())
@@ -5206,24 +5257,7 @@ export default function App() {
   }
 
   async function handleCloudSync() {
-    if (activeSession) return; // never sync mid-workout
-    setDriveSync(s => ({ ...s, cloudStatus: 'syncing' }));
-    try {
-      const { sessions: cur, rides: curRides } = dataRef.current;
-      const [cloudHealth, cloudWatch] = await Promise.all([
-        pullHealthMetrics(),
-        pullWatchWorkouts(),
-      ]);
-      await Promise.all([
-        ...cur.map(pushSession),
-        ...curRides.map(pushRide),
-      ]);
-      if (cloudHealth) setHealthData(prev => mergeHealthData(cloudHealth, prev, { preferCloud: true }));
-      if (cloudWatch) setWatchData(cloudWatch);
-      setDriveSync(s => ({ ...s, cloudStatus: 'ok', lastCloudSync: new Date().toISOString() }));
-    } catch (e) {
-      setDriveSync(s => ({ ...s, cloudStatus: 'error' }));
-    }
+    await refreshCloudData({ pushLocal: true });
   }
 
   async function runAiExplanation(request) {

@@ -2,6 +2,12 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-05 — Automatic overnight cloud refresh (Codex)
+
+- Fixed startup restoration so fresh same-day cloud readings take precedence over stale local cache values
+- Added refresh on app focus/visibility and every 15 minutes while IronLog remains open
+- Kept Sync now as an explicit full health/watch refresh with session and ride backup
+
 ## 2026-11-04 — Reposition Activity Balance (Codex)
 
 - Moved Activity Balance above Recovery Trend on Home so activity volume is visible before the recovery trend detail
