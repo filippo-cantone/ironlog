@@ -380,7 +380,7 @@ async function pullHealthMetrics() {
   try {
     const { data, error } = await db
       .from('health_metrics')
-      .select('metric, date, value')
+      .select('metric, date, value, updated_at')
       .order('date', { ascending: true });
     if (error || !data || !data.length) return null;
     const result = {
@@ -394,7 +394,11 @@ async function pullHealthMetrics() {
     };
     data.forEach(row => {
       const key = keyMap[row.metric];
-      if (key) result[key].push({ date: row.date, value: Number(row.value) });
+      if (key) result[key].push({
+        date: row.date,
+        value: Number(row.value),
+        ...(row.updated_at ? { updatedAt: row.updated_at } : {}),
+      });
     });
     return result;
   } catch (e) { console.warn('IronLog restore (health):', e); }
@@ -5206,10 +5210,16 @@ export default function App() {
     setDriveSync(s => ({ ...s, cloudStatus: 'syncing' }));
     try {
       const { sessions: cur, rides: curRides } = dataRef.current;
+      const [cloudHealth, cloudWatch] = await Promise.all([
+        pullHealthMetrics(),
+        pullWatchWorkouts(),
+      ]);
       await Promise.all([
         ...cur.map(pushSession),
         ...curRides.map(pushRide),
       ]);
+      if (cloudHealth) setHealthData(prev => mergeHealthData(cloudHealth, prev, { preferCloud: true }));
+      if (cloudWatch) setWatchData(cloudWatch);
       setDriveSync(s => ({ ...s, cloudStatus: 'ok', lastCloudSync: new Date().toISOString() }));
     } catch (e) {
       setDriveSync(s => ({ ...s, cloudStatus: 'error' }));

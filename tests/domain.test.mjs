@@ -77,6 +77,12 @@ test('health mapping preserves cardio and merges cloud/local readings by date', 
     { date: '2026-11-02', value: 19 },
     { date: '2026-11-03', value: 18 },
   ]);
+  const refreshed = mergeHealthData(
+    { hrv: [{ date: '2026-11-02', value: 31 }] },
+    { hrv: [{ date: '2026-11-02', value: 19 }] },
+    { preferCloud: true },
+  );
+  assert.deepEqual(refreshed.hrv, [{ date: '2026-11-02', value: 31 }]);
 });
 
 test('sleep profile reports duration, efficiency, stages, and awake time without inventing a score', () => {

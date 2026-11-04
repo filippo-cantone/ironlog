@@ -37,7 +37,7 @@ function mapHealthRows(rows = []) {
   return result;
 }
 
-function mergeHealthData(cloud, local) {
+function mergeHealthData(cloud, local, { preferCloud = false } = {}) {
   const cloudData = cloud || {};
   const localData = local || {};
   return HEALTH_KEYS.reduce((result, key) => {
@@ -47,7 +47,13 @@ function mergeHealthData(cloud, local) {
     // than the last cloud upload, so local readings must not be discarded just
     // because Supabase already has an older non-empty array.
     const byDate = new Map();
-    [...cloudValues, ...localValues].forEach(reading => {
+    // Normal startup preserves locally imported readings that are newer than a
+    // previous cloud snapshot. An explicit refresh can opt into cloud-first
+    // ordering so same-day exports replace stale cached values.
+    const orderedValues = preferCloud
+      ? [...localValues, ...cloudValues]
+      : [...cloudValues, ...localValues];
+    orderedValues.forEach(reading => {
       const date = typeof reading?.date === 'string' ? reading.date.slice(0, 10) : '';
       const value = Number(reading?.value);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(value)) return;

@@ -4,6 +4,10 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
+### Apple Health manual refresh — complete — Codex — 2026-11-04
+- ✅ The visible Sync now action pulls newly received Apple Health and Apple Watch exports into the open app.
+- ✅ Explicit cloud refreshes prefer cloud values for same-day readings so stale cached values cannot mask a fresh export.
+
 ### End-of-workout symptom note review — complete — Codex — 2026-11-04
 - ✅ Added a bounded local review of exercise notes, logged pain, and repeated body-area language after workout completion.
 - ✅ Added an explicit completion-screen AI review for workouts containing discomfort notes or meaningful pain signals.

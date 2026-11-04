@@ -2,6 +2,11 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-04 — Refresh newly received Apple Health exports (Codex)
+
+- Fixed the visible Supabase `Sync now` action so it also pulls newly received Apple Health and Apple Watch exports into the open app
+- Explicit cloud refreshes now prefer cloud values for same-day readings, preventing stale cached values from masking a fresh export
+
 ## 2026-11-04 — End-of-workout symptom note review (Codex)
 
 - Added a bounded local review of exercise notes, pain scores, and repeated body-area language across recent workouts
