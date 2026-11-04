@@ -3,6 +3,15 @@ import defaultTheme from '../ui/theme.js';
 
 export default function Dashboard({ sessions, rides, setView, activeSession, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, driveSync, onCloudSync, updateAvailable, onWarmupOpen, onDemoOpen, coachRec, showWhy, setShowWhy, healthData, watchData, activitySummary, onAiExplain, helpers = {}, components = {}, theme: themeProps = defaultTheme }) {
   const { C, st, dash } = themeProps;
+
+  // Calendar-day keys must stay in the user's local timezone. ISO strings are
+  // UTC and can move midnight dates into the previous day in Melbourne.
+  const localDateKey = value => {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
   const {
     computeRecovery, computeFatigue, computeTrainingLoad, computeTrendInsight,
     summarizeWatchEffort, timeGreeting, weekStart, weekMondayStart, workoutDisplay, fmtDate,
@@ -54,10 +63,10 @@ export default function Dashboard({ sessions, rides, setView, activeSession, sel
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mondayStart);
     d.setDate(mondayStart.getDate() + i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const sess = sessions.find(s => s.completed && s.date?.slice(0, 10) === dateStr);
-    const ride = rides.find(r => r.date?.slice(0, 10) === dateStr);
-    const isToday = dateStr === new Date().toISOString().slice(0, 10);
+    const dateStr = localDateKey(d);
+    const sess = sessions.find(s => s.completed && localDateKey(s.date) === dateStr);
+    const ride = rides.find(r => localDateKey(r.date) === dateStr);
+    const isToday = dateStr === localDateKey(new Date());
     return { d, dateStr, sess, ride, isToday, dayLetter: ['M','T','W','T','F','S','S'][i] };
   });
   const recent = [...sessions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);

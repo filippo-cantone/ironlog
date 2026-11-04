@@ -2,6 +2,11 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-04 — Fix local weekday highlighting (Codex)
+
+- Fixed the Home week strip using UTC date keys, which could highlight the wrong weekday around local midnight in Melbourne
+- Session, ride, and “today” matching now use local calendar dates consistently
+
 ## 2026-11-04 — Refresh newly received Apple Health exports (Codex)
 
 - Fixed the visible Supabase `Sync now` action so it also pulls newly received Apple Health and Apple Watch exports into the open app
