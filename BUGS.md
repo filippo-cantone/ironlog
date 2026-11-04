@@ -8,7 +8,10 @@ Format for commits: `Fix BUG-NNN: short description`
 
 ## Open
 
-*(No high-priority bugs currently open)*
+### BUG-015 [IN PROGRESS — Codex] Daily metric cards can present the last exported reading as today
+**Opened:** 2026-11-05
+**Detail:** If Health Auto Export omits a daily metric such as `step_count`, the app correctly retains the last known value but the Home card labels it as current and evaluates it against today's target.
+**Planned fix:** Show the reading date and an explicit waiting-for-today-export state when no reading exists for the local calendar date.
 
 ---
 
