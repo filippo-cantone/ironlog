@@ -16,6 +16,16 @@ Read README.md for full project context before commenting. Key constraints:
 - Storage is currently `localStorage` only
 - The user already has a Supabase project running (`bhlbebdmuodscdgcwkyb`) for a separate app
 
+## Decision 0b — Explicit end-of-workout symptom-note review ✅ Resolved 2026-11-04
+
+Exercise notes can contain useful context that cannot be recovered from weight, reps, RPE, pain scores, or Apple Watch effort alone. IronLog therefore adds a separate `symptom_note_review` AI mode rather than including notes in every AI request.
+
+- Local code first groups repeated body-area language and flags safety-related wording.
+- The completion screen opens the review when the current workout contains a discomfort note or meaningful pain signal.
+- Only the explicit review sends bounded exercise observations, dates, pain/RPE summaries, and local recurrence groups.
+- The AI may explain patterns and suggest conservative next steps, but it may not diagnose, prescribe medication, override pain safeguards, or replace a physiotherapist, doctor, or urgent medical care.
+- Ordinary AI context remains note-free, and the first-use disclosure states the exception clearly.
+
 ---
 
 ## Decision 1 — Exercise Demo Videos

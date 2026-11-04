@@ -2599,7 +2599,7 @@ function AiConsentModal({ onAccept, onDecline, onClose }) {
       <div style={{ ...st.card(), marginBottom: 12 }}>
         <div style={{ ...st.label, marginBottom: 6 }}>What is shared</div>
         <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
-          Summary values and trends only. Raw Apple Health exports, ECG readings, notes, and individual Watch samples are not sent. AI explanations do not replace IronLog’s safety rules or medical advice.
+          Summary values and trends only for ordinary explanations. Raw Apple Health exports, ECG readings, and individual Watch samples are not sent. When you explicitly choose the end-of-workout discomfort review, the selected exercise notes and related pain/RPE summaries are sent so the service can look for repeated patterns. AI explanations do not replace IronLog’s safety rules, a physiotherapist, a doctor, or emergency medical care.
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -5226,12 +5226,13 @@ export default function App() {
       coachRec,
       allExercises,
       focus: request.focus,
-      maxChars: request.mode === 'weekly_review' ? 18000 : 50000,
+      maxChars: request.mode === 'weekly_review' ? 18000 : request.mode === 'symptom_note_review' ? 24000 : 50000,
       activitySummary,
       activityGoals,
       sleepTimeline,
       weightTrend,
       goalCoaching,
+      symptomReview: request.mode === 'symptom_note_review' ? request.symptomReview : null,
     });
     const payload = {
       mode: request.mode || 'metric_explanation',

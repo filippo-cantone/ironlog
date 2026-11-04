@@ -69,6 +69,24 @@ test('AI context remains bounded for long histories', () => {
   assert.equal(context.truncated, true);
 });
 
+test('symptom-note context is opt-in and bounded to explicit observations', () => {
+  const context = buildAiContext({
+    healthData: { hrv: [{ date: '2026-11-04', value: 22 }] },
+    sessions: [],
+    allExercises: {},
+    symptomReview: {
+      workout: 'A', currentDate: '2026-11-04', noteCount: 1, entryCount: 1, currentEntryCount: 1,
+      safetySignals: [], repeatedPatterns: [],
+      observations: [{ date: '2026-11-04', workout: 'A', exercise: 'DB Press', text: 'shoulder felt tight', pain: 2, rpe: 7, areas: ['shoulder'], current: true }],
+    },
+    focus: 'exercise discomfort',
+    maxChars: 5000,
+  });
+  assert.equal(context.symptomReview.observations[0].userText, 'shoulder felt tight');
+  assert.equal(containsPrivateRawFields(context), false);
+  assert.ok(JSON.stringify(context).length <= 5000);
+});
+
 test('health, session, and Watch summaries retain useful aggregates', () => {
   assert.equal(summarizeHealthData(health).hrv.latest, 22);
   assert.equal(summarizeSessions([{ completed: true, date: '2026-11-01', exercises: [{ id: 'x', sets: [{ weight: 10, reps: 5, done: true }] }] }]).totals.volume, 50);

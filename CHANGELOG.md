@@ -2,6 +2,13 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-04 — End-of-workout symptom note review (Codex)
+
+- Added a bounded local review of exercise notes, pain scores, and repeated body-area language across recent workouts
+- Added an explicit completion-screen `Review discomfort notes with AI` flow for workouts with discomfort signals
+- Added conservative safety-language handling and non-diagnostic AI instructions; the rules engine and medical safeguards remain authoritative
+- Kept notes out of ordinary AI context, updated the first-use disclosure for the explicit exception, added tests, and deployed `ironlog-ai-explain` version 7
+
 ## 2026-11-03 — Show equipment in split workout previews (Codex)
 
 - Added “You’ll need” equipment chips to the collapsed A/B/C selected-workout preview, matching the existing Iron Series workout preview pattern

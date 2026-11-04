@@ -1,7 +1,8 @@
 /**
  * Build privacy-preserving, bounded summaries for the IronLog AI layer.
- * Raw Apple Health exports, ECG records, Watch samples, notes, and set-level
- * timestamps intentionally stay outside this module's output.
+ * Raw Apple Health exports, ECG records, Watch samples, exercise notes, and
+ * set-level timestamps intentionally stay outside the general output. An
+ * explicit symptom-note review may opt in to bounded user-written observations.
  */
 
 const HEALTH_KEYS = [
@@ -188,6 +189,37 @@ export function summarizeWatchData(watchData = {}) {
   };
 }
 
+function summariseSymptomReview(review) {
+  if (!review || typeof review !== 'object') return null;
+  return {
+    schemaVersion: 'ironlog-symptom-review-v1',
+    workout: String(review.workout || '').slice(0, 40),
+    currentDate: String(review.currentDate || '').slice(0, 20) || null,
+    noteCount: Number(review.noteCount) || 0,
+    entryCount: Number(review.entryCount) || 0,
+    currentEntryCount: Number(review.currentEntryCount) || 0,
+    safetySignals: (review.safetySignals || []).map(value => String(value).slice(0, 80)).slice(0, 8),
+    repeatedPatterns: (review.repeatedPatterns || []).slice(0, 8).map(pattern => ({
+      area: String(pattern.area || '').slice(0, 80),
+      mentions: Number(pattern.mentions) || 0,
+      dates: (pattern.dates || []).map(value => String(value).slice(0, 20)).slice(-8),
+      exercises: (pattern.exercises || []).map(value => String(value).slice(0, 90)).slice(0, 8),
+      maxPain: asNumber(pattern.maxPain),
+      repeated: Boolean(pattern.repeated),
+    })),
+    observations: (review.observations || []).slice(-24).map(observation => ({
+      date: String(observation.date || '').slice(0, 20) || null,
+      workout: String(observation.workout || '').slice(0, 40),
+      exercise: String(observation.exercise || '').slice(0, 90),
+      userText: String(observation.text || '').slice(0, 280),
+      pain: asNumber(observation.pain),
+      rpe: asNumber(observation.rpe),
+      areas: (observation.areas || []).map(value => String(value).slice(0, 80)).slice(0, 6),
+      current: Boolean(observation.current),
+    })),
+  };
+}
+
 function trimContext(context, maxChars) {
   let current = context;
   let serialised = JSON.stringify(current);
@@ -221,6 +253,10 @@ function trimContext(context, maxChars) {
     activity: current.activity || null,
     weight: current.weight || null,
     goalCoaching: current.goalCoaching || null,
+    symptomReview: current.symptomReview ? {
+      ...current.symptomReview,
+      observations: (current.symptomReview.observations || []).slice(-12),
+    } : null,
     rules: current.rules || {},
     truncated: true,
   };
@@ -231,7 +267,7 @@ function trimContext(context, maxChars) {
   };
 }
 
-export function buildAiContext({ healthData, sessions, watchData, recovery, coachRec, allExercises, focus, maxChars = 50000, activitySummary, activityGoals, sleepTimeline, weightTrend, goalCoaching } = {}) {
+export function buildAiContext({ healthData, sessions, watchData, recovery, coachRec, allExercises, focus, maxChars = 50000, activitySummary, activityGoals, sleepTimeline, weightTrend, goalCoaching, symptomReview } = {}) {
   const context = {
     schemaVersion: 'ironlog-ai-context-v1',
     generatedAt: new Date().toISOString(),
@@ -272,6 +308,9 @@ export function buildAiContext({ healthData, sessions, watchData, recovery, coac
       limitingPatterns: (goalCoaching.limitingPatterns || []).slice(0, 5),
       nextFocus: String(goalCoaching.nextFocus || '').slice(0, 240),
     } : null,
+    // This is intentionally opt-in. General AI explanations never receive
+    // exercise notes; only the explicit end-of-workout symptom review does.
+    symptomReview: summariseSymptomReview(symptomReview),
     rules: {
       recovery: recovery ? {
         status: String(recovery.status || '').slice(0, 30),

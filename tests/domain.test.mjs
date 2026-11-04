@@ -9,6 +9,7 @@ import charts from '../src/ui/charts/metrics.js';
 import workoutData from '../src/data/workouts.js';
 import importExport from '../src/storage/importExport.js';
 import activity from '../src/domain/activity.js';
+import painNotes from '../src/domain/painNotes.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
@@ -20,6 +21,7 @@ const {
   DEFAULT_ACTIVITY_GOALS, normaliseGoals, calculateActivityPoints,
   summarizeWeeklyActivity, buildSleepTimeline, calculateWeightTrend, buildGoalCoaching,
 } = activity;
+const { buildPainNoteReview, hasPainReviewSignals, symptomReviewRules } = painNotes;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
 
@@ -195,4 +197,33 @@ test('goal coaching keeps suppressed HRV and pain ahead of activity goals', () =
   });
   assert.match(coaching.summary, /recovery signal takes priority/);
   assert.equal(coaching.limitingPatterns.some(item => item.includes('HRV')), true);
+});
+
+test('symptom review groups repeated exercise discomfort and keeps the local recommendation conservative', () => {
+  const sessions = [
+    { id: 'old', completed: true, date: '2026-10-30', workout: 'A', exercises: [{ id: 'press', notes: 'Left shoulder felt pinchy at the top.', sets: [{ done: true, pain: 2, rpe: 8 }] }] },
+    { id: 'current', completed: true, date: '2026-11-04', workout: 'B', exercises: [{ id: 'row', notes: 'Shoulder discomfort returned when pulling.', sets: [{ done: true, pain: 3, rpe: 8 }] }] },
+  ];
+  const review = buildPainNoteReview({ currentSession: sessions[1], sessions: [sessions[0]], allExercises: { press: { name: 'DB Press' }, row: { name: 'DB Row' } } });
+  assert.equal(review.currentEntryCount, 1);
+  assert.equal(review.repeatedPatterns[0].area, 'shoulder');
+  assert.equal(review.repeatedPatterns[0].repeated, true);
+  assert.equal(hasPainReviewSignals(review), true);
+  assert.match(symptomReviewRules(review).summary, /shoulder/);
+  assert.match(review.localRecommendation, /physiotherapist/);
+});
+
+test('symptom review flags urgent language without diagnosing it', () => {
+  const session = { id: 'urgent', completed: true, date: '2026-11-04', workout: 'C', exercises: [{ id: 'deadlift', notes: 'New numbness radiating down the leg.', sets: [{ done: true, pain: 4 }] }] };
+  const review = buildPainNoteReview({ currentSession: session, allExercises: { deadlift: { name: 'KB Deadlift' } } });
+  assert.ok(review.safetySignals.includes('neurological symptom'));
+  assert.match(review.localRecommendation, /urgent medical assessment/);
+  assert.match(symptomReviewRules(review).title, /Safety/);
+});
+
+test('symptom review does not trigger for ordinary pain-free sets', () => {
+  const session = { id: 'clear', completed: true, date: '2026-11-04', workout: 'A', exercises: [{ id: 'bench', sets: [{ done: true, pain: 0, rpe: 7 }] }] };
+  const review = buildPainNoteReview({ currentSession: session, allExercises: { bench: { name: 'Bench Press' } } });
+  assert.equal(review.hasCurrentSignals, false);
+  assert.equal(hasPainReviewSignals(review), false);
 });

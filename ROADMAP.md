@@ -4,10 +4,12 @@ This document tracks planned features, known issues, and agent feedback. It is t
 
 Read README.md first for full project context, user profile, medical constraints, and architecture.
 
-### End-of-workout symptom note review — in progress — Codex — 2026-11-04
-- Add a bounded review of exercise notes, logged pain, and repeated symptom patterns after workout completion.
-- Keep the rules engine and medical safety boundaries authoritative; AI may explain patterns and suggest next steps, but must not diagnose.
-- Keep notes out of general AI context unless the user explicitly requests this review.
+### End-of-workout symptom note review — complete — Codex — 2026-11-04
+- ✅ Added a bounded local review of exercise notes, logged pain, and repeated body-area language after workout completion.
+- ✅ Added an explicit completion-screen AI review for workouts containing discomfort notes or meaningful pain signals.
+- ✅ Added safety-language flags for chest/breathing symptoms, neurological symptoms, fainting/severe dizziness, and bladder/bowel changes; these remain warnings to seek appropriate care, not diagnoses.
+- ✅ Kept exercise observations out of ordinary AI requests; only the explicit symptom-note review sends bounded user-written observations with exercise, date, pain, and RPE context.
+- ✅ Deployed `ironlog-ai-explain` version 7 with the `symptom_note_review` mode and conservative non-diagnostic instructions.
 
 ### Apple Health freshness audit — complete — Codex — 2026-11-03
 - ✅ Audited current Supabase dates and values for every stored Health metric and identified the missing sleep block in the latest server capture.

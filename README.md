@@ -124,10 +124,11 @@ The remaining shared UI and app-root wiring are still organised inside `src/Iron
 
 IronLog can optionally explain existing deterministic results with a multi-provider AI layer. The rules engine remains authoritative for recovery, pain, safety, and progression decisions.
 
-- `src/domain/aiContext.js` builds bounded summaries of health history, completed training, Watch effort aggregates, and rules results. Raw Health Auto Export files, ECG data, notes, set timestamps, and raw Watch samples are excluded.
+- `src/domain/aiContext.js` builds bounded summaries of health history, completed training, Watch effort aggregates, and rules results. Raw Health Auto Export files, ECG data, set timestamps, and raw Watch samples are excluded. Exercise notes are excluded from ordinary requests; the explicit end-of-workout symptom review may send bounded user-written observations only after the user chooses that review.
+- `src/domain/painNotes.js` groups repeated exercise discomfort language and pain/RPE context locally. It identifies safety language for cautious escalation but never diagnoses an injury.
 - `src/integrations/aiCoach.js` handles consent, the `il_ai_insights` cache, response validation, and deterministic fallback.
 - `supabase/functions/ironlog-ai-explain/index.ts` tries Groq first, then Cloudflare Workers AI models, returns structured JSON only, and advances for transient or provider-specific model/request-shape failures while stopping on authentication and validation failures.
-- AI explanations are available from readiness, sleep, HRV, resting HR, Watch effort, workout effort, exercise progression, and the Health weekly review.
+- AI explanations are available from readiness, sleep, HRV, resting HR, Watch effort, workout effort, exercise progression, the Health weekly review, and the explicit end-of-workout symptom-note review.
 - The first request shows a disclosure. AI can be disabled in **Manage → Backup**. The app remains fully useful without provider credentials.
 
 To enable provider-backed explanations, configure the Edge Function secrets and deploy it with the Supabase CLI:

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from '../runtime.js';
 import defaultTheme from '../ui/theme.js';
+import { buildPainNoteReview, hasPainReviewSignals, symptomReviewRules } from '../domain/painNotes.js';
 
 export default function ActiveWorkout({ sessions, activeSession, setActiveSession, onComplete, setView, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, onDemoOpen, onWarmupOpen, coachRec, showWhy, setShowWhy, recovery, watchData, onAiExplain, helpers = {}, components = {}, data = {}, theme: themeProps = defaultTheme }) {
   const { C, st } = themeProps;
@@ -33,6 +34,7 @@ export default function ActiveWorkout({ sessions, activeSession, setActiveSessio
   );
   const [prs, setPRs] = useState([]);
   const [nudges, setNudges] = useState([]);
+  const [symptomReview, setSymptomReview] = useState(null);
   const [showAddEx, setShowAddEx] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [showDiagram, setShowDiagram] = useState(false);
@@ -221,10 +223,20 @@ export default function ActiveWorkout({ sessions, activeSession, setActiveSessio
         return allDone && !ex.exerciseCompletedAt ? { ...ex, exerciseCompletedAt: nowIso } : ex;
       }),
     };
+    const review = buildPainNoteReview({ currentSession: completed, sessions: [...sessions, completed], allExercises });
+    setSymptomReview(review);
     setPRs(detectPRs(completed, sessions, allExercises));
     setNudges(checkOverloadNudges(completed, allExercises));
     onComplete(completed);
     setPhase('done');
+    if (hasPainReviewSignals(review)) {
+      onAiExplain?.({
+        mode: 'symptom_note_review',
+        focus: 'exercise discomfort and recurring symptom notes',
+        symptomReview: review,
+        rulesResult: symptomReviewRules(review),
+      });
+    }
   }
 
   if (session && (!Array.isArray(session.exercises) || session.exercises.length === 0)) {
@@ -766,6 +778,29 @@ export default function ActiveWorkout({ sessions, activeSession, setActiveSessio
             {nudges.map((n, i) => (
               <div key={i} style={{ fontSize: 12, color: C.amber, marginBottom: 2 }}>{n} — ready to increase load</div>
             ))}
+          </div>
+        )}
+
+        {symptomReview && hasPainReviewSignals(symptomReview) && (
+          <div style={{ ...st.card((symptomReview.safetySignals?.length ? C.red : C.amber) + '10'), borderColor: (symptomReview.safetySignals?.length ? C.red : C.amber) + '44', marginBottom: 16, textAlign: 'left' }}>
+            <div style={{ ...st.label, color: symptomReview.safetySignals?.length ? C.red : C.amber, marginBottom: 8 }}>Exercise discomfort review</div>
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.45 }}>
+              {symptomReview.repeatedPatterns?.length
+                ? `Repeated references: ${symptomReview.repeatedPatterns.slice(0, 3).map(pattern => pattern.area).join(', ')}.`
+                : 'A pain score or discomfort note was recorded in this workout.'}
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.45, marginTop: 6 }}>{symptomReview.localRecommendation}</div>
+            <button
+              onClick={() => onAiExplain?.({
+                mode: 'symptom_note_review',
+                focus: 'exercise discomfort and recurring symptom notes',
+                symptomReview,
+                rulesResult: symptomReviewRules(symptomReview),
+              })}
+              style={{ ...st.ghost, width: '100%', marginTop: 10, color: C.blue, borderColor: C.blue + '55' }}
+            >
+              ✦ Review discomfort notes with AI
+            </button>
           </div>
         )}
 
