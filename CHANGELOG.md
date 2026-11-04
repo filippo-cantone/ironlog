@@ -6,6 +6,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 
 - Added a bounded local review of exercise notes, pain scores, and repeated body-area language across recent workouts
 - Added an explicit completion-screen `Review discomfort notes with AI` flow for workouts with discomfort signals
+- Added a dedicated Notes & discomfort section to expanded completed sessions in the Log tab, with note details and a repeatable AI review action
 - Added conservative safety-language handling and non-diagnostic AI instructions; the rules engine and medical safeguards remain authoritative
 - Kept notes out of ordinary AI context, updated the first-use disclosure for the explicit exception, added tests, and deployed `ironlog-ai-explain` version 7
 - Historical recurrence informs a current review without auto-sending after a pain-free workout

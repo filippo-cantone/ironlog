@@ -1,6 +1,7 @@
 import React, { useState } from '../runtime.js';
 import theme from '../ui/theme.js';
 import { sessionActivitySummary } from '../domain/activity.js';
+import { buildPainNoteReview, symptomReviewRules } from '../domain/painNotes.js';
 
 const { C, st } = theme;
 
@@ -330,6 +331,46 @@ function SessionActivitySummary({ session, watchData, goals }) {
   );
 }
 
+function SessionSymptomReview({ session, sessions, allExercises, onAiExplain }) {
+  const review = buildPainNoteReview({ currentSession: session, sessions, allExercises });
+  if (!review.hasCurrentSignals) return null;
+  const currentObservations = review.observations.filter(observation => observation.current);
+  const rules = symptomReviewRules(review);
+  const tone = review.safetySignals?.length ? C.red : C.amber;
+  return (
+    <div style={{ ...st.card(tone + '0c'), borderColor: tone + '44', marginBottom: 12, padding: 12 }}>
+      <div style={{ ...st.label, color: tone, marginBottom: 7 }}>Notes &amp; discomfort</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {currentObservations.map((observation, index) => (
+          <div key={`${observation.exercise}-${index}`} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 7, padding: '7px 9px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+              <span style={{ fontFamily: C.fDisplay, fontSize: 13, color: C.text, textTransform: 'uppercase' }}>{observation.exercise}</span>
+              <span style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted }}>
+                {observation.pain != null ? `Pain ${observation.pain}/10` : ''}{observation.rpe != null ? `${observation.pain != null ? ' · ' : ''}RPE ${observation.rpe}` : ''}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginTop: 3 }}>{observation.text}</div>
+          </div>
+        ))}
+      </div>
+      {review.repeatedPatterns?.length > 0 && (
+        <div style={{ fontSize: 11, color: C.text, lineHeight: 1.4, marginTop: 8 }}>
+          Repeated references: {review.repeatedPatterns.slice(0, 3).map(pattern => pattern.area).join(', ')}.
+        </div>
+      )}
+      <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginTop: 5 }}>{review.localRecommendation}</div>
+      <button onClick={() => onAiExplain?.({
+        mode: 'symptom_note_review',
+        focus: 'exercise discomfort and recurring symptom notes',
+        symptomReview: review,
+        rulesResult: rules,
+      })} style={{ ...st.ghost, width: '100%', marginTop: 9, color: C.blue, borderColor: C.blue + '55', fontSize: 10 }}>
+        ✦ Review notes with AI
+      </button>
+    </div>
+  );
+}
+
 export default function History({ sessions, setSessions, allExercises = {}, watchData, activitySummary, onAiExplain, helpers = {} }) {
   const deps = helpers;
   const { WORKOUTS, getIronWorkout, fmtDate } = deps;
@@ -461,6 +502,7 @@ export default function History({ sessions, setSessions, allExercises = {}, watc
                   <>
                     <SessionActivitySummary session={sess} watchData={watchData} goals={activitySummary?.goals} />
                     <WorkoutEffortReview session={sess} watchData={watchData} allExercises={allExercises} deps={deps} onAiExplain={onAiExplain} />
+                    <SessionSymptomReview session={sess} sessions={sessions} allExercises={allExercises} onAiExplain={onAiExplain} />
                   </>
                 )}
                 {(editingId === sess.id ? draft.exercises : sess.exercises)?.map((ex, exIdx) => {

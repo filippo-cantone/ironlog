@@ -128,7 +128,7 @@ IronLog can optionally explain existing deterministic results with a multi-provi
 - `src/domain/painNotes.js` groups repeated exercise discomfort language and pain/RPE context locally. It identifies safety language for cautious escalation but never diagnoses an injury.
 - `src/integrations/aiCoach.js` handles consent, the `il_ai_insights` cache, response validation, and deterministic fallback.
 - `supabase/functions/ironlog-ai-explain/index.ts` tries Groq first, then Cloudflare Workers AI models, returns structured JSON only, and advances for transient or provider-specific model/request-shape failures while stopping on authentication and validation failures.
-- AI explanations are available from readiness, sleep, HRV, resting HR, Watch effort, workout effort, exercise progression, the Health weekly review, and the explicit end-of-workout symptom-note review.
+- AI explanations are available from readiness, sleep, HRV, resting HR, Watch effort, workout effort, exercise progression, the Health weekly review, and the explicit symptom-note review available after completion and from expanded sessions in the Log tab.
 - The first request shows a disclosure. AI can be disabled in **Manage → Backup**. The app remains fully useful without provider credentials.
 
 To enable provider-backed explanations, configure the Edge Function secrets and deploy it with the Supabase CLI:

@@ -7,6 +7,7 @@ Read README.md first for full project context, user profile, medical constraints
 ### End-of-workout symptom note review — complete — Codex — 2026-11-04
 - ✅ Added a bounded local review of exercise notes, logged pain, and repeated body-area language after workout completion.
 - ✅ Added an explicit completion-screen AI review for workouts containing discomfort notes or meaningful pain signals.
+- ✅ Added the same notes and AI review to expanded completed sessions in the Log tab for later access.
 - ✅ Added safety-language flags for chest/breathing symptoms, neurological symptoms, fainting/severe dizziness, and bladder/bowel changes; these remain warnings to seek appropriate care, not diagnoses.
 - ✅ Kept exercise observations out of ordinary AI requests; only the explicit symptom-note review sends bounded user-written observations with exercise, date, pain, and RPE context.
 - ✅ Historical recurrence informs a current review but does not auto-send after a pain-free workout; automatic prompting requires a current note or pain signal.
