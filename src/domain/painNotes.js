@@ -164,6 +164,10 @@ export function hasPainReviewSignals(review) {
   return Boolean(review?.hasCurrentSignals || review?.repeatedPatterns?.length || review?.safetySignals?.length);
 }
 
+export function shouldPromptPainReview(review) {
+  return Boolean(review?.hasCurrentSignals);
+}
+
 export function symptomReviewRules(review) {
   const repeated = review?.repeatedPatterns || [];
   const safety = review?.safetySignals || [];
@@ -185,4 +189,4 @@ export function symptomReviewRules(review) {
   };
 }
 
-export default { buildPainNoteReview, hasPainReviewSignals, symptomReviewRules };
+export default { buildPainNoteReview, hasPainReviewSignals, shouldPromptPainReview, symptomReviewRules };

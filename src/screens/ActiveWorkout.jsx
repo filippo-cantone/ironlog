@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from '../runtime.js';
 import defaultTheme from '../ui/theme.js';
-import { buildPainNoteReview, hasPainReviewSignals, symptomReviewRules } from '../domain/painNotes.js';
+import { buildPainNoteReview, hasPainReviewSignals, shouldPromptPainReview, symptomReviewRules } from '../domain/painNotes.js';
 
 export default function ActiveWorkout({ sessions, activeSession, setActiveSession, onComplete, setView, selectedWorkout, setSelectedWorkout, allExercises = {}, workoutCustom = {}, workoutHidden = {}, onDemoOpen, onWarmupOpen, coachRec, showWhy, setShowWhy, recovery, watchData, onAiExplain, helpers = {}, components = {}, data = {}, theme: themeProps = defaultTheme }) {
   const { C, st } = themeProps;
@@ -229,7 +229,7 @@ export default function ActiveWorkout({ sessions, activeSession, setActiveSessio
     setNudges(checkOverloadNudges(completed, allExercises));
     onComplete(completed);
     setPhase('done');
-    if (hasPainReviewSignals(review)) {
+    if (shouldPromptPainReview(review)) {
       onAiExplain?.({
         mode: 'symptom_note_review',
         focus: 'exercise discomfort and recurring symptom notes',

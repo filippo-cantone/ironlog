@@ -8,6 +8,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Added an explicit completion-screen `Review discomfort notes with AI` flow for workouts with discomfort signals
 - Added conservative safety-language handling and non-diagnostic AI instructions; the rules engine and medical safeguards remain authoritative
 - Kept notes out of ordinary AI context, updated the first-use disclosure for the explicit exception, added tests, and deployed `ironlog-ai-explain` version 7
+- Historical recurrence informs a current review without auto-sending after a pain-free workout
 
 ## 2026-11-03 — Show equipment in split workout previews (Codex)
 

@@ -21,7 +21,7 @@ const {
   DEFAULT_ACTIVITY_GOALS, normaliseGoals, calculateActivityPoints,
   summarizeWeeklyActivity, buildSleepTimeline, calculateWeightTrend, buildGoalCoaching,
 } = activity;
-const { buildPainNoteReview, hasPainReviewSignals, symptomReviewRules } = painNotes;
+const { buildPainNoteReview, hasPainReviewSignals, shouldPromptPainReview, symptomReviewRules } = painNotes;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
 
@@ -209,6 +209,7 @@ test('symptom review groups repeated exercise discomfort and keeps the local rec
   assert.equal(review.repeatedPatterns[0].area, 'shoulder');
   assert.equal(review.repeatedPatterns[0].repeated, true);
   assert.equal(hasPainReviewSignals(review), true);
+  assert.equal(shouldPromptPainReview(review), true);
   assert.match(symptomReviewRules(review).summary, /shoulder/);
   assert.match(review.localRecommendation, /physiotherapist/);
 });
@@ -226,4 +227,5 @@ test('symptom review does not trigger for ordinary pain-free sets', () => {
   const review = buildPainNoteReview({ currentSession: session, allExercises: { bench: { name: 'Bench Press' } } });
   assert.equal(review.hasCurrentSignals, false);
   assert.equal(hasPainReviewSignals(review), false);
+  assert.equal(shouldPromptPainReview(review), false);
 });
