@@ -13,10 +13,11 @@ Format for commits: `Fix BUG-NNN: short description`
 **Detail:** If Health Auto Export omits a daily metric such as `step_count`, the app correctly retains the last known value but the Home card labels it as current and evaluates it against today's target.
 **Fix applied:** Home metric cards and their detail modals now show the latest reading date, label missing current-day data explicitly, and avoid applying today's step target to a stale reading. The detail explanation directs the user to verify the relevant Health Auto Export metric and export again.
 
-### BUG-016 [IN PROGRESS — Codex] Apple Watch cycling workouts are not materialised as rides
+### BUG-016 [FIXED] Apple Watch cycling workouts are not materialised as rides
 **Opened:** 2026-11-10
+**Fixed:** 2026-11-10 by Codex
 **Detail:** Apple Watch cycling workouts reach `apple_workouts`, but the Rides tab only shows manually entered rides. Duplicate Apple records can also inflate cycling totals.
-**Planned fix:** Deduplicate equivalent cycling workouts, replace matching manual rides with Apple-sourced ride records, and automatically upsert future cycling exports into the Rides tab.
+**Fix applied:** Apple cycling workouts are deduplicated by time window, enriched with exported distance and workout summary metrics, and automatically materialised as Apple Watch rides. Matching manual rides are removed from the local/cloud ride list, unrelated historical rides are preserved, and weekly cycling totals do not count the same Apple ride twice.
 
 ---
 

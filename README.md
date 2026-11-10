@@ -157,6 +157,7 @@ IronLog uses Apple Health and Apple Watch for activity evidence. Google Fit is a
 - Log shows per-session activity points, moderate/vigorous minutes, active calories, and Watch sample quality where a Watch workout matches.
 - Manage → Goals lets Phill edit weekly Heart Points, strength sessions, cycling minutes, daily steps, optional active calories, and optional personal maximum heart rate for HR-based estimates.
 - Watch intensity metadata is preferred. When it is missing, points are estimated from minute-level heart-rate samples and labelled with sample quality; if there is not enough information, IronLog reports that rather than inventing points.
+- Apple Watch cycling workouts are automatically deduplicated and added to Rides with exported distance, duration, active calories, average/peak heart rate, and source details. Matching manual rides are replaced while unrelated historical rides are kept.
 - Activity goals never override HRV-led readiness, pain safeguards, or medical constraints. Strength effort continues to use sets, RPE, pain, Watch effort, and progression rather than treating intermittent lifting heart rate as aerobic volume.
 
 The local preference key is `il_activity_goals`. JSON backups at schema version 3 include activity goals and health data when present.

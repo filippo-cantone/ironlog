@@ -10,6 +10,7 @@ import workoutData from '../src/data/workouts.js';
 import importExport from '../src/storage/importExport.js';
 import activity from '../src/domain/activity.js';
 import painNotes from '../src/domain/painNotes.js';
+import ridesDomain from '../src/domain/rides.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
@@ -22,8 +23,49 @@ const {
   summarizeWeeklyActivity, buildSleepTimeline, calculateWeightTrend, buildGoalCoaching,
 } = activity;
 const { buildPainNoteReview, hasPainReviewSignals, shouldPromptPainReview, symptomReviewRules } = painNotes;
+const { extractDistanceKm, syncAppleCyclingRides } = ridesDomain;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
+
+test('Apple cycling rides replace matching manual entries and remove duplicate workouts', () => {
+  const workouts = [
+    {
+      source_id: 'best', name: 'Outdoor Cycling', local_date: '2026-11-10',
+      start_at: '2026-11-10T06:14:51Z', end_at: '2026-11-10T07:15:53Z', duration_sec: 3376,
+      active_energy_kcal: 332.3, avg_heart_rate: 112, max_heart_rate: 125, intensity: 5, distance_km: 17.63,
+    },
+    {
+      source_id: 'duplicate', name: 'Outdoor Cycling', local_date: '2026-11-10',
+      start_at: '2026-11-10T06:14:51Z', end_at: '2026-11-10T07:15:53Z', duration_sec: 3376,
+      active_energy_kcal: 279.9, avg_heart_rate: 111, max_heart_rate: 125, distance_km: 16.59,
+    },
+    {
+      source_id: 'morning', name: 'Outdoor Cycling', local_date: '2026-11-09',
+      start_at: '2026-11-09T19:34:59Z', end_at: '2026-11-09T20:31:54Z', duration_sec: 3172,
+      active_energy_kcal: 397, avg_heart_rate: 119, max_heart_rate: 135, distance_km: 17.35,
+    },
+  ];
+  const manual = [
+    { id: 'old', date: '2026-11-10T07:35:15.440Z', duration: 56, distance: 17.35, notes: 'Ride to work. Good.' },
+    { id: 'home', date: '2026-11-10T07:34:48.302Z', duration: 61, distance: 17.62, notes: 'Ride home from work. Great' },
+    { id: 'prior', date: '2026-05-17T00:00:00Z', duration: 26, distance: null },
+  ];
+  const result = syncAppleCyclingRides(manual, workouts);
+  assert.equal(result.appleRides.length, 2);
+  assert.equal(result.removed.length, 2);
+  assert.equal(result.rides.filter(ride => ride.source === 'apple_health').length, 2);
+  assert.equal(result.rides.some(ride => ride.id === 'prior'), true);
+  assert.equal(result.rides.find(ride => ride.source === 'apple_health').distance, 17.63);
+  const repeated = syncAppleCyclingRides(result.rides, workouts);
+  assert.equal(repeated.added.length, 0);
+  assert.equal(repeated.removed.length, 0);
+  assert.equal(repeated.rides.filter(ride => ride.source === 'apple_health').length, 2);
+});
+
+test('Apple cycling distance is read from Health Auto Export raw values', () => {
+  assert.equal(extractDistanceKm({ raw: { distance: { qty: 17.6, units: 'km' } } }), 17.6);
+  assert.equal(extractDistanceKm({ raw: { distance: { qty: 17600, units: 'm' } } }), 17.6);
+});
 
 test('progression ignores incomplete sets and gates pain/RPE', () => {
   const session = { exercises: [{ id: 'bench', sets: [{ weight: 20, reps: 10, done: true }, { weight: 30, reps: 10, done: false }] }] };

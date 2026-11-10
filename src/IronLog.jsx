@@ -23,6 +23,7 @@ import importExportDomain from './storage/importExport.js';
 import buildAiContext from './domain/aiContext.js';
 import aiCoachDomain from './integrations/aiCoach.js';
 import activityDomain from './domain/activity.js';
+import rideDomain from './domain/rides.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
@@ -33,6 +34,7 @@ const {
   DEFAULT_ACTIVITY_GOALS, normaliseGoals, sessionActivitySummary,
   summarizeWeeklyActivity, buildSleepTimeline, calculateWeightTrend, buildGoalCoaching,
 } = activityDomain;
+const { dedupeAppleCyclingWorkouts, extractDistanceKm, syncAppleCyclingRides } = rideDomain;
 const { C, st, dash } = theme;
 const { smoothLinePath, chartColorKey, metricChartColorKey, metricStatusColor, gradientStopsForPoints: chartGradientStops } = chartDomain;
 const { WORKOUTS, IRON_WORKOUTS } = workoutData;
@@ -346,6 +348,16 @@ async function pushRide(ride) {
   } catch (e) { console.warn('IronLog sync (ride):', e); }
 }
 
+async function deleteRide(rideId) {
+  if (!db || !rideId) return;
+  try {
+    await db.from('ironlog_rides')
+      .delete()
+      .eq('user_id', IRONLOG_UID)
+      .eq('id', rideId);
+  } catch (e) { console.warn('IronLog delete ride:', e); }
+}
+
 async function pullSessions(localSessions) {
   if (!db) return null;
   try {
@@ -408,12 +420,17 @@ async function pullHealthMetrics() {
 async function pullWatchWorkouts() {
   if (!db) return { matches: [], workouts: [], samples: [], ecg: [] };
   try {
-    const [matchRes, workoutRes, sampleRes, ecgRes] = await Promise.all([
+    const [matchRes, workoutRes, cyclingRawRes, sampleRes, ecgRes] = await Promise.all([
       db.from('ironlog_watch_matches')
         .select('*')
         .order('session_start_at', { ascending: false }),
       db.from('apple_workouts')
         .select('source_id,name,local_date,start_at,end_at,duration_sec,active_energy_kcal,avg_heart_rate,max_heart_rate,intensity')
+        .order('start_at', { ascending: false })
+        .limit(30),
+      db.from('apple_workouts')
+        .select('source_id,raw')
+        .ilike('name', '%cycl%')
         .order('start_at', { ascending: false })
         .limit(30),
       db.from('apple_workout_samples')
@@ -427,16 +444,32 @@ async function pullWatchWorkouts() {
     ]);
     if (matchRes.error) console.warn('IronLog restore (watch matches):', matchRes.error);
     if (workoutRes.error) console.warn('IronLog restore (watch workouts):', workoutRes.error);
+    if (cyclingRawRes.error) console.warn('IronLog restore (cycling workout details):', cyclingRawRes.error);
     if (sampleRes.error) console.warn('IronLog restore (watch samples):', sampleRes.error);
     if (ecgRes.error) console.warn('IronLog restore (ecg):', ecgRes.error);
+    const rawDistanceById = new Map((cyclingRawRes.data || []).map(row => {
+      const distance = extractDistanceKm({ raw: row?.raw });
+      return distance == null ? null : [String(row.source_id), distance];
+    }).filter(Boolean));
+    const workouts = dedupeAppleCyclingWorkouts((workoutRes.data || []).map(workout => {
+      const distance = rawDistanceById.get(String(workout.source_id));
+      return distance == null ? workout : { ...workout, distance_km: distance };
+    }));
     return {
       matches: matchRes.data || [],
-      workouts: workoutRes.data || [],
+      workouts,
       samples: sampleRes.data || [],
       ecg: ecgRes.data || [],
     };
   } catch (e) { console.warn('IronLog restore (watch):', e); }
   return { matches: [], workouts: [], samples: [], ecg: [] };
+}
+
+function reconcileAppleCyclingRides(previousRides, watchSnapshot) {
+  const result = syncAppleCyclingRides(previousRides, watchSnapshot?.workouts || []);
+  result.added.forEach(pushRide);
+  result.removed.forEach(ride => deleteRide(ride.id));
+  return result.rides;
 }
 
 async function pushHealthMetrics(healthData) {
@@ -5144,7 +5177,10 @@ export default function App() {
         ]);
       }
       if (cloudHealth) setHealthData(prev => mergeHealthData(cloudHealth, prev, { preferCloud: true }));
-      if (cloudWatch) setWatchData(cloudWatch);
+      if (cloudWatch) {
+        setWatchData(cloudWatch);
+        setRides(previous => reconcileAppleCyclingRides(previous, cloudWatch));
+      }
       setDriveSync(s => ({ ...s, cloudStatus: 'ok', lastCloudSync: new Date().toISOString(), error: null }));
       return Boolean(cloudHealth || cloudWatch);
     } catch (e) {
@@ -5180,9 +5216,11 @@ export default function App() {
       ]);
       const finalSessions = cloudSessions || localSessions;
       const finalRides    = cloudRides    || localRides;
+      const finalWatch    = cloudWatch || { matches: [], workouts: [], samples: [], ecg: [] };
+      const reconciledRides = reconcileAppleCyclingRides(finalRides, finalWatch);
 
       setSessions(finalSessions);
-      setRides(finalRides);
+      setRides(reconciledRides);
       if (a)  setActiveSession(migrateSession(a));
       if (ce) setCustomExercises(ce);
       if (wc) setWorkoutCustom(wc);
@@ -5198,7 +5236,7 @@ export default function App() {
       // stores; otherwise an old local reading can hide the overnight export.
       setHealthData(mergeHealthData(cloudHealth, localHealth, { preferCloud: true }));
       setActivityGoals(normaliseGoals(savedGoals));
-      setWatchData(cloudWatch || { matches: [], workouts: [], samples: [], ecg: [] });
+      setWatchData(finalWatch);
       if (cloudHealth || cloudWatch) {
         setDriveSync(s => ({ ...s, cloudStatus: 'ok', lastCloudSync: new Date().toISOString(), error: null }));
       }

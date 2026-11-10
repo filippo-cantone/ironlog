@@ -20,7 +20,7 @@ export default function Rides({ rides = [], setRides, onCloudSave }) {
   }
 
   const typeColor = { easy: C.green, moderate: C.amber, hard: C.blue, hilly: C.amber, recovery: C.green, intervals: C.blue, sprinkles: C.blue, tempo: C.amber, long: C.green };
-  const sorted = [...rides].reverse();
+  const sorted = [...rides].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   return (
     <div style={{ padding: 16 }}>
@@ -91,9 +91,18 @@ export default function Rides({ rides = [], setRides, onCloudSave }) {
               <div>
                 <div style={{ ...st.row, marginBottom: 4 }}>
                   <span style={st.pill(typeColor[ride.type] || C.muted)}>{ride.type}</span>
+                  {ride.source === 'apple_health' && <span style={st.pill(C.green)}>Apple Watch</span>}
                   {ride.effort && <span style={{ ...st.mono(11, C.muted) }}>RPE {ride.effort}</span>}
                 </div>
                 {ride.notes && <div style={{ fontSize: 12, color: C.muted }}>{ride.notes}</div>}
+                {ride.source === 'apple_health' && (
+                  <div style={{ ...st.mono(10, C.muted), marginTop: 3 }}>
+                    {[ride.activeCalories != null ? `${Math.round(ride.activeCalories)} kcal` : null,
+                      ride.averageHeartRate != null ? `${Math.round(ride.averageHeartRate)} avg bpm` : null,
+                      ride.peakHeartRate != null ? `${Math.round(ride.peakHeartRate)} peak bpm` : null]
+                      .filter(Boolean).join(' · ')}
+                  </div>
+                )}
               </div>
               <div style={{ textAlign: 'right' }}>
                 {ride.distance != null && <div style={{ fontFamily: C.fMono, fontSize: 22, color: C.amber, lineHeight: 1 }}>{ride.distance}<span style={{ fontSize: 11, color: C.muted }}>km</span></div>}

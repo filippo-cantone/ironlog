@@ -94,6 +94,8 @@ Iron Series programme fully integrated. 30-day Caroline Girvan dumbbell programm
 - ✅ Set start timing + recovery CTA cleanup — Codex: recovery-day Home actions simplified and set rows now use explicit Start/Done timing
 - ✅ Home health InsightModals — Codex: tappable HRV, resting HR, steps, active calories, Watch effort, and recovery trend detail panels
 - ✅ Workout effort review — Codex: completed workouts in Log now show Apple Watch session summary, HR timeline, exercise effort, and set-level HR/kcal/sample-confidence detail
+- ✅ Apple Watch cycling rides — Codex: cycling exports are deduplicated, enriched with raw-export distance, and automatically materialised in Rides with calories and heart-rate summary
+- ✅ Manual ride replacement — Codex: matching manual cycling entries are removed when the corresponding Apple Watch record arrives; unrelated historical rides remain
 - 🔄 Next: review accuracy over several timestamped workouts and tune confidence rules if Apple Watch samples remain too sparse for set-level guidance
 - 🔄 Next: live-device polish after Phill tests Safari/PWA cache, first-screen fit, and whether the recommendation language feels useful during actual training days
 

@@ -185,9 +185,15 @@ function summarizeWeeklyActivity({ sessions = [], rides = [], watchData = {}, he
   const currentSessions = sessions.filter(session => session?.completed && new Date(session.date || 0) >= start);
   const summaries = currentSessions.map(session => sessionActivitySummary(session, watchData, safeGoals));
   const watchWorkouts = (watchData.workouts || []).filter(workout => new Date(workout.start_at || workout.start || workout.date || 0) >= start);
+  const appleRideSourceIds = new Set((rides || [])
+    .filter(ride => ride?.source === 'apple_health')
+    .map(ride => String(ride.sourceId ?? ride.source_id ?? '')));
+  const unrepresentedWatchCycling = watchWorkouts
+    .filter(workoutLooksLikeCycling)
+    .filter(workout => !appleRideSourceIds.has(String(workout.source_id ?? workout.sourceId ?? workout.id ?? '')));
   const rideMinutes = rides.filter(ride => new Date(ride.date || 0) >= start)
     .reduce((sum, ride) => sum + (asNumber(ride.duration) || asNumber(ride.durationMinutes) || 0), 0)
-    + watchWorkouts.filter(workoutLooksLikeCycling).reduce((sum, workout) => sum + workoutDurationMinutes(workout), 0);
+    + unrepresentedWatchCycling.reduce((sum, workout) => sum + workoutDurationMinutes(workout), 0);
   const stepRows = (healthData.steps || []).filter(row => new Date(`${row.date}T00:00:00`) >= start);
   const calorieRows = (healthData.activeCal || []).filter(row => new Date(`${row.date}T00:00:00`) >= start);
   const steps = stepRows.reduce((sum, row) => sum + (asNumber(row.value) || 0), 0);

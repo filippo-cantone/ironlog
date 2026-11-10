@@ -2,6 +2,12 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-10 — Import Apple Watch cycling rides (Codex)
+
+- Fixed [BUG-016](BUGS.md): Apple Watch cycling workouts now appear automatically in the Rides tab with distance, duration, active calories, average/peak heart rate, intensity, and an Apple Watch source label
+- Deduplicated equivalent Apple cycling records from Health Auto Export and removed the two matching manual rides from 10 November while preserving the older May ride
+- Prevented Activity Balance from counting an Apple-sourced ride both as a ride and as a raw Watch workout
+
 ## 2026-11-05 — Label stale daily Health readings (Codex)
 
 - Fixed [BUG-015](BUGS.md): Home metric cards no longer present a previous day's reading as today's result when Health Auto Export omits the current-day metric
