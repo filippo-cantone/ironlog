@@ -95,6 +95,51 @@ function downsampleRoutePoints(points = [], maxPoints = 900) {
   return [...indexes].sort((a, b) => a - b).slice(0, maxPoints).map(index => points[index]);
 }
 
+function routeBounds(points = []) {
+  const valid = points.filter(point => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)));
+  if (!valid.length) return null;
+  const minLat = Math.min(...valid.map(point => Number(point.latitude)));
+  const maxLat = Math.max(...valid.map(point => Number(point.latitude)));
+  const minLon = Math.min(...valid.map(point => Number(point.longitude)));
+  const maxLon = Math.max(...valid.map(point => Number(point.longitude)));
+  return {
+    minLat, maxLat, minLon, maxLon,
+    latSpan: Math.max(0.00001, maxLat - minLat),
+    lonSpan: Math.max(0.00001, maxLon - minLon),
+  };
+}
+
+function projectRoutePoints(points = [], width = 1000, height = 560) {
+  const bounds = routeBounds(points);
+  if (!bounds) return points.map(() => null);
+  return points.map(point => {
+    if (!point || !Number.isFinite(Number(point.latitude)) || !Number.isFinite(Number(point.longitude))) return null;
+    return {
+      x: 42 + ((Number(point.longitude) - bounds.minLon) / bounds.lonSpan) * (width - 84),
+      y: 245 + (1 - ((Number(point.latitude) - bounds.minLat) / bounds.latSpan)) * 190,
+    };
+  });
+}
+
+function routeMarkerIndexes(points = [], distances = [1, 5, 10, 15]) {
+  if (!Array.isArray(points) || !points.length) return [];
+  return distances
+    .map(distance => points.reduce((best, point, index) => (
+      Math.abs(Number(point?.distanceKm ?? 0) - distance) < Math.abs(Number(points[best]?.distanceKm ?? 0) - distance) ? index : best
+    ), 0))
+    .filter((index, position, all) => points[index] && all.indexOf(index) === position)
+    .sort((a, b) => a - b);
+}
+
+function compareRideMetrics(selected = {}, previous = {}) {
+  const fields = ['distance', 'duration', 'activeCalories', 'averageHeartRate', 'peakHeartRate'];
+  return Object.fromEntries(fields.map(field => {
+    const current = asNumber(selected?.[field]);
+    const prior = asNumber(previous?.[field]);
+    return [field, current == null || prior == null ? null : round(current - prior, field === 'distance' ? 2 : 0)];
+  }));
+}
+
 function normaliseSamples(samples = [], types = []) {
   const wanted = new Set(types.map(type => String(type).toLowerCase()));
   return (Array.isArray(samples) ? samples : [])
@@ -256,6 +301,10 @@ module.exports = {
   withCumulativeDistance,
   smoothAltitude,
   downsampleRoutePoints,
+  routeBounds,
+  projectRoutePoints,
+  routeMarkerIndexes,
+  compareRideMetrics,
   normaliseSamples,
   nearestSample,
   buildGeoJsonSegments,

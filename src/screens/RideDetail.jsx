@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from '../runtime.js';
 import theme from '../ui/theme.js';
+import FuturisticRideScene from '../ui/FuturisticRideScene.jsx';
+import rideReplay from '../domain/rideReplay.js';
 
 const { C } = theme;
+const { compareRideMetrics } = rideReplay;
 
 const palette = {
   bg: '#07111d', panel: '#0d1b2b', panelRaised: '#12273a', line: '#1b4b68',
@@ -13,6 +16,18 @@ const effortColor = effort => ({ easy: palette.teal, steady: palette.blue, moder
 
 function finite(value, fallback = 0) {
   return Number.isFinite(Number(value)) ? Number(value) : fallback;
+}
+
+function metricValue(primary, fallback = null) {
+  const first = Number(primary);
+  if (Number.isFinite(first)) return first;
+  const second = Number(fallback);
+  return Number.isFinite(second) ? second : null;
+}
+
+function metricText(primary, fallback, digits = 0, suffix = '') {
+  const value = metricValue(primary, fallback);
+  return value == null ? '—' : `${value.toFixed(digits)}${suffix}`;
 }
 
 function formatDate(value) {
@@ -93,7 +108,7 @@ function RouteSvg({ detail, progressIndex, compact = false }) {
   );
 }
 
-function RideMap({ detail, progressIndex }) {
+function RideMap({ detail, progressIndex, onFutureScene }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const routeSourceRef = useRef(null);
@@ -159,6 +174,7 @@ function RideMap({ detail, progressIndex }) {
       {mapFailed && <RouteSvg detail={detail} progressIndex={progressIndex} compact />}
       <div style={{ position: 'absolute', top: 12, left: 12, padding: '7px 11px', borderRadius: 5, background: 'rgba(7,17,29,0.9)', color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 1.5, boxShadow: `0 0 14px ${palette.cyan}30` }}>REAL ROUTE · {mapFailed ? 'VECTOR MODE' : 'MAP MODE'}</div>
       <div style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, border: `1px solid ${palette.cyan}`, borderRadius: '50%', color: palette.text, display: 'grid', placeItems: 'center', background: 'rgba(7,17,29,0.78)', fontFamily: C.fMono, fontSize: 10, lineHeight: 1.05, textAlign: 'center' }}>N<span style={{ color: palette.cyan, fontSize: 15 }}>▲</span></div>
+      <button onClick={onFutureScene} style={{ position: 'absolute', top: 54, right: 12, background: 'rgba(7,17,29,0.92)', border: `1px solid ${palette.cyan}`, borderRadius: 16, color: palette.cyan, padding: '7px 11px', fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase', cursor: 'pointer' }}>Future scene</button>
       <div style={{ position: 'absolute', top: 56, right: 12, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, maxWidth: '54%' }}>
         {routeMoments(detail).slice(0, 2).map(moment => <div key={moment.label} style={{ background: 'rgba(7,17,29,0.92)', border: `1px solid ${moment.color}`, borderRadius: 7, padding: '6px 9px', color: moment.color, fontFamily: C.fMono, fontSize: 9, letterSpacing: 0.8, textAlign: 'right', boxShadow: `0 0 14px ${moment.color}25` }}><strong style={{ display: 'block', fontSize: 9 }}>{moment.label}</strong><span style={{ color: palette.text }}>{moment.value}</span></div>)}
       </div>
@@ -267,6 +283,7 @@ function routeMoments(detail) {
     detail?.strongestClimbIndex >= 0 && { label: 'STRONGEST CLIMB', value: `+${detail.strongestClimbGain ?? '—'} m · ${routeDistance(detail, detail.strongestClimbIndex)} km`, color: palette.amber },
     detail?.peakHeartIndex >= 0 && { label: 'PEAK HEART RATE', value: `${detail.peakHeartRate ?? '—'} bpm · ${routeDistance(detail, detail.peakHeartIndex)} km`, color: palette.coral },
     detail?.recoveryIndex >= 0 && { label: 'RECOVERY POINT', value: `HR settled · ${routeDistance(detail, detail.recoveryIndex)} km`, color: palette.teal },
+    detail?.fastestIndex >= 0 && detail?.maxSpeedKmh != null && { label: 'FASTEST SECTION', value: `${detail.maxSpeedKmh} km/h · ${routeDistance(detail, detail.fastestIndex)} km`, color: palette.blue },
   ].filter(Boolean);
 }
 
@@ -324,9 +341,11 @@ function RouteProfile({ detail }) {
 
 export default function RideDetail({ ride, rides = [], detail, loading, onBack, onLoad }) {
   const [tab, setTab] = useState('map');
+  const [sceneMode, setSceneMode] = useState('futuristic');
   const [progressIndex, setProgressIndex] = useState(() => Math.max(1, (detail?.points?.length || 2) - 1));
   const [playing, setPlaying] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [moreDataOpen, setMoreDataOpen] = useState(false);
   const maxIndex = Math.max(1, (detail?.points?.length || 2) - 1);
 
   useEffect(() => {
@@ -342,6 +361,9 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
   useEffect(() => {
     setProgressIndex(maxIndex);
     setPlaying(false);
+    setSceneMode('futuristic');
+    setCompareOpen(false);
+    setMoreDataOpen(false);
   }, [detail?.sourceId, maxIndex]);
 
   useEffect(() => {
@@ -363,24 +385,25 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
   const comparisonRide = [...rides]
     .filter(item => item.id !== ride?.id && item.sourceId !== ride?.sourceId && item.source_id !== ride?.source_id)
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0];
+  const comparisonDeltas = comparisonRide ? compareRideMetrics(ride, comparisonRide) : {};
   const metricDelta = (field, digits = 0) => {
-    if (!comparisonRide || ride?.[field] == null || comparisonRide?.[field] == null) return '—';
-    const delta = Number(ride[field]) - Number(comparisonRide[field]);
+    if (!comparisonRide || comparisonDeltas[field] == null) return '—';
+    const delta = comparisonDeltas[field];
     return `${delta >= 0 ? '+' : ''}${delta.toFixed(digits)}`;
   };
   const isManual = !ride?.sourceId && !ride?.source_id;
   if (loading) return <div style={{ minHeight: '80vh', background: palette.bg, color: palette.cyan, padding: 24, fontFamily: C.fMono, letterSpacing: 1 }}>LOADING RIDE ROUTE…</div>;
 
   return (
-    <div style={{ minHeight: '100vh', background: palette.bg, color: palette.text, padding: '10px 12px 104px', fontFamily: C.fBody, maxWidth: 1180, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 2px 13px', borderBottom: `1px solid ${palette.line}80`, marginBottom: 14 }}>
-        <div style={{ color: palette.text, fontFamily: C.fDisplay, fontSize: 18, fontStyle: 'italic', fontWeight: 700, letterSpacing: 0.5 }}><span style={{ color: palette.cyan, marginRight: 7 }}>//</span>IronLog</div>
+    <div style={{ minHeight: '100vh', background: palette.bg, color: palette.text, padding: '10px 12px 108px', fontFamily: C.fBody, maxWidth: 1180, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 2px 11px', borderBottom: `1px solid ${palette.line}80`, marginBottom: 14 }}>
+        <button onClick={onBack} aria-label="Back to rides" style={{ background: 'transparent', border: 0, color: palette.text, fontFamily: C.fDisplay, fontSize: 18, fontStyle: 'italic', fontWeight: 700, letterSpacing: 0.5, padding: 0, cursor: 'pointer' }}><span style={{ color: palette.cyan, marginRight: 7 }}>//</span>IronLog</button>
         <div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1.6 }}>RIDE SYSTEM / 01</div>
       </div>
-      <button onClick={onBack} style={{ background: 'transparent', border: 0, color: palette.muted, fontFamily: C.fMono, fontSize: 11, letterSpacing: 1, padding: '0 0 14px', cursor: 'pointer' }}>← BACK TO RIDES</button>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-        <div><div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2 }}>RIDE COMPLETE</div><h1 style={{ margin: '3px 0 4px', fontFamily: C.fDisplay, fontSize: 42, textTransform: 'uppercase', lineHeight: 0.95, letterSpacing: 0.3 }}>{ride?.type === 'moderate' ? 'Outdoor cycling' : `${ride?.type || 'Cycling'} ride`}</h1><div style={{ color: palette.muted, fontSize: 14 }}>{formatDate(ride?.date)} {ride?.date && `· ${formatClock(ride.date)}`}</div></div>
-        <div style={{ ...pillStyle(palette.blue), whiteSpace: 'nowrap' }}>{ride?.source === 'apple_health' ? 'Apple Watch' : 'Manual ride'}</div>
+      <div style={{ textAlign: 'center', marginBottom: 18 }}>
+        <div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2 }}>RIDE COMPLETE</div>
+        <h1 style={{ margin: '5px 0 2px', fontFamily: C.fDisplay, fontSize: 46, textTransform: 'uppercase', lineHeight: 0.9, letterSpacing: 0.7 }}><span style={{ color: palette.cyan, marginRight: 10 }}>‹</span>{ride?.type === 'moderate' ? 'Outdoor cycling' : `${ride?.type || 'Cycling'} ride`}<span style={{ color: palette.cyan, marginLeft: 10 }}>›</span></h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}><div style={{ color: palette.muted, fontSize: 14 }}>{formatDate(ride?.date)} {ride?.date && `· ${formatClock(ride.date)}`}</div><div style={{ ...pillStyle(ride?.source === 'apple_health' ? palette.blue : palette.muted), whiteSpace: 'nowrap' }}>{ride?.source === 'apple_health' ? 'Apple Watch' : 'Manual ride'}</div></div>
       </div>
 
       {isManual ? (
@@ -389,46 +412,27 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
         <div style={panelStyle}><div style={eyebrowStyle}>ROUTE UNAVAILABLE</div><p style={{ color: palette.muted, lineHeight: 1.5, margin: '8px 0 0' }}>{detail.error || 'The Apple Watch route could not be loaded.'}</p></div>
       ) : detail ? (
         <>
-          {tab === 'map' && <div style={{ ...panelStyle, padding: 8 }}><RideMap detail={detail} progressIndex={progressIndex} /><div style={{ margin: '5px -1px -5px', borderTop: `1px solid ${palette.line}` }}><ThreeTerrain detail={detail} /></div></div>}
+          {tab === 'map' && <div style={{ ...panelStyle, padding: 8, background: '#07111d', borderColor: palette.line }}>{sceneMode === 'futuristic' ? <FuturisticRideScene detail={detail} progressIndex={progressIndex} onRealMap={() => setSceneMode('real-map')} /> : <RideMap detail={detail} progressIndex={progressIndex} onFutureScene={() => setSceneMode('futuristic')} />}</div>}
           {tab === 'map' && <RouteProfile detail={detail} />}
 
           <div style={{ ...panelStyle, display: 'flex', overflowX: 'auto', padding: 0, marginTop: 10 }}>
-            <Metric value={`${finite(detail.distance, finite(ride.distance)).toFixed(2)} km`} label="Distance" />
-            <Metric value={`${Math.round(finite(detail.duration, ride.duration))} min`} label="Duration" color={palette.blue} />
-            <Metric value={`${Math.round(finite(detail.activeCalories, ride.activeCalories))} kcal`} label="Energy" color={palette.amber} />
-            <Metric value={`${Math.round(finite(detail.averageHeartRate, ride.averageHeartRate))} bpm`} label="Avg HR" color={palette.teal} />
-            <Metric value={`${Math.round(finite(detail.peakHeartRate, ride.peakHeartRate))} bpm`} label="Peak HR" color={palette.coral} />
+            <Metric value={metricText(detail.distance, ride.distance, 2, ' km')} label="Distance" />
+            <Metric value={metricText(detail.duration, ride.duration, 0, ' min')} label="Duration" color={palette.blue} />
+            <Metric value={metricText(detail.activeCalories, ride.activeCalories, 0, ' kcal')} label="Energy" color={palette.amber} />
+            <Metric value={metricText(detail.averageHeartRate, ride.averageHeartRate, 0, ' bpm')} label="Avg HR" color={palette.teal} />
+            <Metric value={metricText(detail.peakHeartRate, ride.peakHeartRate, 0, ' bpm')} label="Peak HR" color={palette.coral} />
           </div>
 
-          <div style={{ marginTop: 14 }}>
-            <div style={{ color: palette.text, fontFamily: C.fDisplay, fontSize: 23, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>EXPLORE THE RIDE</div>
+          <div style={{ marginTop: 18 }}>
+            <div style={{ color: palette.text, fontFamily: C.fDisplay, fontSize: 25, fontStyle: 'italic', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}><span style={{ color: palette.cyan, marginRight: 8 }}>//</span>EXPLORE THE RIDE</div>
             <div style={{ display: 'flex', gap: 0, overflowX: 'auto', background: palette.panel, border: `1px solid ${palette.line}`, borderRadius: 10, padding: 4 }}>
-              {['map', 'effort', 'elevation', 'speed'].map(item => <button key={item} onClick={() => setTab(item)} style={{ flex: 1, minWidth: 82, border: 0, borderRadius: 7, padding: '11px 8px', background: tab === item ? palette.cyan : 'transparent', color: tab === item ? palette.bg : palette.muted, fontFamily: C.fMono, fontSize: 10, textTransform: 'uppercase', cursor: 'pointer', boxShadow: tab === item ? `0 0 18px ${palette.cyan}70` : 'none' }}>{item}</button>)}
+              {[['map', '▧'], ['effort', '▥'], ['elevation', '⌁'], ['speed', '◌']].map(([item, icon]) => <button key={item} onClick={() => setTab(item)} style={{ flex: 1, minWidth: 82, border: 0, borderRadius: 7, padding: '13px 8px', background: tab === item ? palette.cyan : 'transparent', color: tab === item ? palette.bg : palette.muted, fontFamily: C.fMono, fontSize: 10, textTransform: 'uppercase', cursor: 'pointer', boxShadow: tab === item ? `0 0 18px ${palette.cyan}70` : 'none' }}><span style={{ display: 'block', fontSize: 20, lineHeight: 1, marginBottom: 4 }}>{icon}</span>{item}</button>)}
             </div>
           </div>
 
           {tab === 'effort' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="heartRate" color={palette.coral} label="Heart rate" units="bpm" /><div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 10px 10px' }}>{['easy', 'steady', 'moderate', 'hard'].map(item => <span key={item} style={{ ...pillStyle(effortColor(item)), textTransform: 'capitalize' }}>{item}</span>)}</div></div>}
           {tab === 'elevation' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="smoothedAltitude" color={palette.amber} label="Elevation" units="m" />{statLine('Ascent', `+${detail.ascent ?? '—'} m`, palette.amber)}{statLine('Descent', `−${detail.descent ?? '—'} m`, palette.blue)}</div>}
           {tab === 'speed' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="speed" color={palette.blue} label="Speed" units="m/s" />{statLine('Fastest sampled speed', detail.maxSpeedKmh != null ? `${detail.maxSpeedKmh} km/h` : 'Unavailable', palette.blue)}</div>}
-
-          <div style={{ ...panelStyle, marginTop: 10 }}>
-            <div style={eyebrowStyle}>RIDE SIGNAL</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
-              <div><div style={{ color: palette.amber, fontSize: 19, fontFamily: C.fMono }}>+{detail.ascent ?? '—'}m</div><div style={{ color: palette.muted, fontSize: 10 }}>ASCENT</div></div>
-              <div><div style={{ color: palette.cyan, fontSize: 19, fontFamily: C.fMono }}>{detail.routePointCount}</div><div style={{ color: palette.muted, fontSize: 10 }}>GPS POINTS</div></div>
-              <div><div style={{ color: detail.confidence === 'good' ? palette.teal : palette.amber, fontSize: 19, fontFamily: C.fMono, textTransform: 'capitalize' }}>{detail.confidence}</div><div style={{ color: palette.muted, fontSize: 10 }}>DATA QUALITY</div></div>
-            </div>
-            <p style={{ color: palette.text, lineHeight: 1.45, margin: '14px 0 0' }}>Your route data combines GPS position, altitude, speed, and heart-rate timing. Elevation totals are estimates because GPS altitude can be noisy.</p>
-          </div>
-
-          <div style={{ ...panelStyle, marginTop: 10, background: `linear-gradient(115deg, ${palette.panelRaised}, ${palette.panel})`, borderColor: `${palette.amber}80` }}>
-            <div style={{ color: palette.amber, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' }}>SESSION HIGHLIGHTS</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
-              <div><div style={{ color: palette.amber, fontFamily: C.fMono, fontSize: 16 }}>+{strongestClimbGain ?? '—'} m</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Strongest climb</div></div>
-              <div><div style={{ color: palette.coral, fontFamily: C.fMono, fontSize: 16 }}>{detail.peakHeartRate ?? '—'} bpm</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Peak effort</div></div>
-              <div><div style={{ color: palette.blue, fontFamily: C.fMono, fontSize: 16 }}>{detail.maxSpeedKmh ?? '—'} km/h</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Fastest sample</div></div>
-            </div>
-          </div>
 
           <div style={{ ...panelStyle, marginTop: 10, borderColor: `${palette.amber}90`, background: `linear-gradient(110deg, ${palette.panelRaised}, ${palette.panel})`, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: palette.amber, fontSize: 27, lineHeight: 1 }}>🏆</div>
@@ -449,9 +453,19 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
             {comparisonRide ? <>
               <div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 10, margin: '7px 0 12px' }}>Selected ride vs {formatDate(comparisonRide.date)}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                {[['Distance', 'distance', 2, palette.cyan], ['Duration', 'duration', 0, palette.blue], ['Energy', 'activeCalories', 0, palette.amber], ['Avg HR', 'averageHeartRate', 0, palette.teal]].map(([label, field, digits, color]) => <div key={field} style={{ padding: '9px 7px', border: `1px solid ${palette.line}`, borderRadius: 6 }}><div style={{ color, fontFamily: C.fMono, fontSize: 15 }}>{metricDelta(field, digits)}</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 8, textTransform: 'uppercase', marginTop: 5 }}>{label}</div></div>)}
+                {[['Distance', 'distance', 2, palette.cyan], ['Duration', 'duration', 0, palette.blue], ['Energy', 'activeCalories', 0, palette.amber], ['Avg HR', 'averageHeartRate', 0, palette.teal], ['Peak HR', 'peakHeartRate', 0, palette.coral]].map(([label, field, digits, color]) => <div key={field} style={{ padding: '9px 7px', border: `1px solid ${palette.line}`, borderRadius: 6 }}><div style={{ color, fontFamily: C.fMono, fontSize: 15 }}>{metricDelta(field, digits)}</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 8, textTransform: 'uppercase', marginTop: 5 }}>{label}</div></div>)}
               </div>
             </> : <div style={{ color: palette.muted, lineHeight: 1.45, marginTop: 8 }}>A second ride is needed before IronLog can compare this route.</div>}
+          </div>}
+          <button onClick={() => setMoreDataOpen(open => !open)} style={{ width: '100%', marginTop: 10, background: 'transparent', border: `1px solid ${palette.line}`, borderRadius: 8, color: palette.muted, padding: '10px 12px', fontFamily: C.fMono, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, cursor: 'pointer' }}>{moreDataOpen ? 'Hide more ride data' : 'Show more ride data'} <span style={{ color: palette.cyan }}>{moreDataOpen ? '⌃' : '⌄'}</span></button>
+          {moreDataOpen && <div style={{ ...panelStyle, marginTop: 8 }}>
+            <div style={eyebrowStyle}>RIDE SIGNAL</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
+              <div><div style={{ color: palette.amber, fontSize: 19, fontFamily: C.fMono }}>+{detail.ascent ?? '—'}m</div><div style={{ color: palette.muted, fontSize: 10 }}>ASCENT</div></div>
+              <div><div style={{ color: palette.cyan, fontSize: 19, fontFamily: C.fMono }}>{detail.routePointCount ?? '—'}</div><div style={{ color: palette.muted, fontSize: 10 }}>GPS POINTS</div></div>
+              <div><div style={{ color: detail.confidence === 'good' ? palette.teal : palette.amber, fontSize: 19, fontFamily: C.fMono, textTransform: 'capitalize' }}>{detail.confidence || '—'}</div><div style={{ color: palette.muted, fontSize: 10 }}>DATA QUALITY</div></div>
+            </div>
+            <p style={{ color: palette.muted, lineHeight: 1.45, margin: '14px 0 0' }}>Your route data combines GPS position, altitude, speed, and heart-rate timing. Elevation totals are estimates because GPS altitude can be noisy.</p>
           </div>}
         </>
       ) : null}

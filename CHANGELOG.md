@@ -2,6 +2,13 @@
 
 Reverse-chronological log of all meaningful changes. One entry per change — date, author, one line. Link bug IDs from BUGS.md where relevant.
 
+## 2026-11-11 — Rebuild futuristic ride replay reference (Codex)
+
+- Fixed [BUG-018](BUGS.md): Apple Watch ride details now use a phone-first poster composition with a centred Ride Complete header, dominant stylised terrain scene, neon route moments, prominent profile, metric strip, Explore tabs, story, replay, and compare actions
+- The default scene uses the real GPS route, altitude, heart-rate effort, distance markers, start/finish points, climb, peak-HR, recovery, and fastest-section annotations; decorative terrain and city forms are explicitly presentation-only
+- Added a Real map toggle that preserves OpenStreetMap context, a collapsed More ride data section, a five-metric comparison including peak heart rate, and a seven-item dark ride navigation that remains usable on phone widths
+- Centralised route projection, distance-marker selection, and null-safe comparison calculations in the tested ride analytics domain
+
 ## 2026-11-10 — Import Apple Watch cycling rides (Codex)
 
 - Fixed [BUG-016](BUGS.md): Apple Watch cycling workouts now appear automatically in the Rides tab with distance, duration, active calories, average/peak heart rate, intensity, and an Apple Watch source label

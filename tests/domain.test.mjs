@@ -25,7 +25,7 @@ const {
 } = activity;
 const { buildPainNoteReview, hasPainReviewSignals, shouldPromptPainReview, symptomReviewRules } = painNotes;
 const { extractDistanceKm, syncAppleCyclingRides } = ridesDomain;
-const { haversineKm, downsampleRoutePoints, smoothAltitude, buildRouteAnalytics } = rideReplay;
+const { haversineKm, downsampleRoutePoints, smoothAltitude, buildRouteAnalytics, projectRoutePoints, routeMarkerIndexes, compareRideMetrics } = rideReplay;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
 
@@ -95,6 +95,24 @@ test('ride replay analytics keep one bounded route and align effort data', () =>
   assert.equal(detail.routePointCount <= 900, true);
   assert.equal(detail.strongestClimbIndex >= 0, true);
   assert.equal(['good', 'limited', 'sparse'].includes(detail.confidence), true);
+});
+
+test('ride replay display helpers preserve route ends, markers, and safe comparison deltas', () => {
+  const points = [
+    { latitude: -37.8, longitude: 144.7, distanceKm: 0 },
+    { latitude: -37.801, longitude: 144.701, distanceKm: 1.1 },
+    { latitude: -37.802, longitude: 144.702, distanceKm: 5.2 },
+    { latitude: -37.803, longitude: 144.703, distanceKm: 10.1 },
+    { latitude: -37.804, longitude: 144.704, distanceKm: 15.0 },
+  ];
+  const projected = projectRoutePoints(points);
+  assert.deepEqual(projected[0], { x: 42, y: 245 });
+  assert.deepEqual(projected.at(-1), { x: 958, y: 435 });
+  assert.deepEqual(routeMarkerIndexes(points), [1, 2, 3, 4]);
+  assert.deepEqual(compareRideMetrics(
+    { distance: 17.63, duration: 56, activeCalories: 332, averageHeartRate: 112, peakHeartRate: 125 },
+    { distance: 16.59, duration: 61, activeCalories: null, averageHeartRate: 119, peakHeartRate: 130 },
+  ), { distance: 1.04, duration: -5, activeCalories: null, averageHeartRate: -7, peakHeartRate: -5 });
 });
 
 test('progression ignores incomplete sets and gates pain/RPE', () => {
