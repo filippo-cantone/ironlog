@@ -26,7 +26,7 @@ function moments(detail) {
   ].filter(Boolean);
 }
 
-function TerrainCanvas({ detail, height = 238 }) {
+function TerrainCanvas({ detail, height = 310 }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -99,9 +99,10 @@ function Callout({ point, label, value, color, dx = 0, dy = -88 }) {
   return <g>
     <line x1={point.x} y1={point.y} x2={x + 88} y2={y + 48} stroke={color} strokeWidth="2" strokeDasharray="5 6" opacity="0.82" />
     <circle cx={point.x} cy={point.y} r="8" fill={color} stroke="#d9ffff" strokeWidth="3" />
-    <rect x={x} y={y} width="176" height="48" rx="8" fill="#07111d" stroke={color} strokeWidth="2" />
-    <text x={x + 12} y={y + 19} fill={color} fontFamily="JetBrains Mono" fontSize="11" fontWeight="700" letterSpacing="0.8">{label}</text>
-    <text x={x + 12} y={y + 36} fill={palette.text} fontFamily="JetBrains Mono" fontSize="10">{value}</text>
+    <rect x={x} y={y} width="198" height="58" rx="9" fill="#07111d" stroke={color} strokeWidth="2" />
+    <circle cx={x + 18} cy={y + 18} r="6" fill={color} opacity="0.95" />
+    <text x={x + 31} y={y + 21} fill={color} fontFamily="JetBrains Mono" fontSize="11" fontWeight="700" letterSpacing="0.8">{label}</text>
+    <text x={x + 13} y={y + 43} fill={palette.text} fontFamily="JetBrains Mono" fontSize="10">{value}</text>
   </g>;
 }
 
@@ -125,9 +126,9 @@ export default function FuturisticRideScene({ detail, progressIndex, onRealMap }
   const byKey = key => moments(detail).find(moment => moment.key === key);
 
   return (
-    <div style={{ position: 'relative', minHeight: 560, overflow: 'hidden', borderRadius: 10, border: `1px solid ${palette.line}`, background: 'radial-gradient(circle at 50% 14%, #12334c 0%, #071522 48%, #040b13 100%)', boxShadow: `0 0 30px ${palette.cyan}20 inset` }}>
+    <div style={{ position: 'relative', minHeight: 690, overflow: 'hidden', borderRadius: 10, border: `1px solid ${palette.line}`, background: 'radial-gradient(circle at 50% 14%, #16445b 0%, #071522 46%, #030810 100%)', boxShadow: `0 0 40px ${palette.cyan}25 inset` }}>
       <TerrainCanvas detail={detail} />
-      <svg viewBox="0 0 1000 560" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} role="img" aria-label="Futuristic route replay scene using the real GPS route">
+      <svg viewBox="0 0 1000 560" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} role="img" aria-label="Futuristic route replay scene using the real GPS route">
         <defs>
           <linearGradient id="scene-ground" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#0e3546" stopOpacity="0.18" /><stop offset="1" stopColor="#02070d" stopOpacity="0.9" /></linearGradient>
           <filter id="scene-glow"><feGaussianBlur stdDeviation="5" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
@@ -139,7 +140,11 @@ export default function FuturisticRideScene({ detail, progressIndex, onRealMap }
         <polyline points={terrain} fill="none" stroke="#2ce4ec" strokeWidth="2" opacity="0.72" />
         {[18, 34, 52, 72].map(offset => <polyline key={offset} points={terrain.split(' ').map(pair => { const [x, y] = pair.split(',').map(Number); return `${x},${y + offset}`; }).join(' ')} fill="none" stroke="#1d6079" strokeWidth="1" opacity="0.64" />)}
         <rect x="0" y="218" width="1000" height="342" fill="url(#scene-grid)" opacity="0.9" />
-        {Array.from({ length: 30 }, (_, index) => { const x = 22 + ((index * 83) % 940); const y = 246 + ((index * 47) % 172); const buildingHeight = 12 + ((index * 19) % 42); return <rect key={index} x={x} y={y - buildingHeight} width={8 + (index % 4) * 3} height={buildingHeight} fill={index % 3 === 0 ? '#14526a' : '#0c3043'} opacity="0.72" />; })}
+        <path d="M780 198 C730 252 820 291 754 345 S735 445 812 560 L1000 560 L1000 205 Z" fill="#0d4053" opacity="0.48" />
+        <path d="M802 198 C762 262 844 290 776 355 S765 445 840 560" fill="none" stroke="#28cfe0" strokeWidth="3" opacity="0.5" />
+        {Array.from({ length: 56 }, (_, index) => { const x = 18 + ((index * 83) % 950); const y = 238 + ((index * 47) % 218); const buildingHeight = 10 + ((index * 19) % 54); const width = 8 + (index % 5) * 4; return <g key={index}><rect x={x} y={y - buildingHeight} width={width} height={buildingHeight} fill={index % 3 === 0 ? '#14526a' : '#0c3043'} opacity="0.78" /><line x1={x + 2} x2={x + width - 2} y1={y - buildingHeight + 5} y2={y - buildingHeight + 5} stroke={index % 4 === 0 ? '#23bdcf' : '#1b5870'} strokeWidth="1" opacity="0.62" /></g>; })}
+        {[0, 1, 2, 3, 4].map(index => <path key={`road-${index}`} d={`M ${index * 245 - 80} 540 C ${index * 245 + 70} 482 ${index * 245 + 125} 410 ${index * 245 + 260} 330`} fill="none" stroke={index % 2 ? '#1b5b70' : '#16455b'} strokeWidth="5" opacity="0.48" />)}
+        {[0, 1, 2].map(index => <path key={`horizon-${index}`} d={`M 0 ${310 + index * 48} H 1000`} fill="none" stroke="#1b5b70" strokeWidth="1" opacity="0.6" />)}
         <polyline points={fullPath} fill="none" stroke="#0bdde9" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round" opacity="0.16" filter="url(#scene-soft-glow)" />
         {visible.slice(1).map((point, index) => {
           const previous = projected[index]; const current = projected[index + 1]; if (!previous || !current) return null;

@@ -395,15 +395,14 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
   if (loading) return <div style={{ minHeight: '80vh', background: palette.bg, color: palette.cyan, padding: 24, fontFamily: C.fMono, letterSpacing: 1 }}>LOADING RIDE ROUTE…</div>;
 
   return (
-    <div style={{ minHeight: '100vh', background: palette.bg, color: palette.text, padding: '10px 12px 108px', fontFamily: C.fBody, maxWidth: 1180, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 2px 11px', borderBottom: `1px solid ${palette.line}80`, marginBottom: 14 }}>
-        <button onClick={onBack} aria-label="Back to rides" style={{ background: 'transparent', border: 0, color: palette.text, fontFamily: C.fDisplay, fontSize: 18, fontStyle: 'italic', fontWeight: 700, letterSpacing: 0.5, padding: 0, cursor: 'pointer' }}><span style={{ color: palette.cyan, marginRight: 7 }}>//</span>IronLog</button>
-        <div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1.6 }}>RIDE SYSTEM / 01</div>
+    <div style={{ minHeight: '100vh', background: palette.bg, color: palette.text, padding: '12px 18px 112px', fontFamily: C.fBody, width: '100%', maxWidth: 1536, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 2px 12px', borderBottom: `1px solid ${palette.line}80`, marginBottom: 18 }}>
+        <button onClick={onBack} aria-label="Back to rides" style={{ background: 'transparent', border: 0, color: palette.text, fontFamily: C.fDisplay, fontSize: 25, fontStyle: 'italic', fontWeight: 700, letterSpacing: 0.5, padding: 0, cursor: 'pointer' }}><span style={{ color: palette.cyan, marginRight: 9 }}>//</span>IronLog</button>
+        <div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 1.8 }}>RIDE SYSTEM / 01</div>
       </div>
-      <div style={{ textAlign: 'center', marginBottom: 18 }}>
-        <div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2 }}>RIDE COMPLETE</div>
-        <h1 style={{ margin: '5px 0 2px', fontFamily: C.fDisplay, fontSize: 46, textTransform: 'uppercase', lineHeight: 0.9, letterSpacing: 0.7 }}><span style={{ color: palette.cyan, marginRight: 10 }}>‹</span>{ride?.type === 'moderate' ? 'Outdoor cycling' : `${ride?.type || 'Cycling'} ride`}<span style={{ color: palette.cyan, marginLeft: 10 }}>›</span></h1>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}><div style={{ color: palette.muted, fontSize: 14 }}>{formatDate(ride?.date)} {ride?.date && `· ${formatClock(ride.date)}`}</div><div style={{ ...pillStyle(ride?.source === 'apple_health' ? palette.blue : palette.muted), whiteSpace: 'nowrap' }}>{ride?.source === 'apple_health' ? 'Apple Watch' : 'Manual ride'}</div></div>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <h1 style={{ margin: '0 0 3px', fontFamily: C.fDisplay, fontSize: 58, fontWeight: 800, textTransform: 'uppercase', lineHeight: 0.9, letterSpacing: 1.1 }}><span style={{ color: palette.cyan, marginRight: 16 }}>‹</span>Ride complete<span style={{ color: palette.cyan, marginLeft: 16 }}>›</span></h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap', color: palette.muted, fontSize: 18 }}><span>{ride?.type === 'moderate' ? 'Outdoor Cycling' : `${ride?.type || 'Cycling'} Ride`}</span><span style={{ color: palette.line }}>·</span><span>{formatDate(ride?.date)} {ride?.date && `· ${formatClock(ride.date)}`}</span><span style={{ color: palette.line }}>·</span><div style={{ ...pillStyle(ride?.source === 'apple_health' ? palette.blue : palette.muted), whiteSpace: 'nowrap', fontSize: 11 }}>{ride?.source === 'apple_health' ? 'Apple Watch' : 'Manual ride'}</div></div>
       </div>
 
       {isManual ? (
@@ -415,7 +414,7 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
           {tab === 'map' && <div style={{ ...panelStyle, padding: 8, background: '#07111d', borderColor: palette.line }}>{sceneMode === 'futuristic' ? <FuturisticRideScene detail={detail} progressIndex={progressIndex} onRealMap={() => setSceneMode('real-map')} /> : <RideMap detail={detail} progressIndex={progressIndex} onFutureScene={() => setSceneMode('futuristic')} />}</div>}
           {tab === 'map' && <RouteProfile detail={detail} />}
 
-          <div style={{ ...panelStyle, display: 'flex', overflowX: 'auto', padding: 0, marginTop: 10 }}>
+          <div style={{ ...panelStyle, display: 'flex', overflowX: 'auto', padding: 0, marginTop: 14, borderRadius: 8 }}>
             <Metric value={metricText(detail.distance, ride.distance, 2, ' km')} label="Distance" />
             <Metric value={metricText(detail.duration, ride.duration, 0, ' min')} label="Duration" color={palette.blue} />
             <Metric value={metricText(detail.activeCalories, ride.activeCalories, 0, ' kcal')} label="Energy" color={palette.amber} />
@@ -423,10 +422,10 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
             <Metric value={metricText(detail.peakHeartRate, ride.peakHeartRate, 0, ' bpm')} label="Peak HR" color={palette.coral} />
           </div>
 
-          <div style={{ marginTop: 18 }}>
-            <div style={{ color: palette.text, fontFamily: C.fDisplay, fontSize: 25, fontStyle: 'italic', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}><span style={{ color: palette.cyan, marginRight: 8 }}>//</span>EXPLORE THE RIDE</div>
+          <div style={{ marginTop: 24 }}>
+            <div style={{ color: palette.text, fontFamily: C.fDisplay, fontSize: 28, fontStyle: 'italic', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 9 }}><span style={{ color: palette.cyan, marginRight: 8 }}>//</span>EXPLORE THE RIDE</div>
             <div style={{ display: 'flex', gap: 0, overflowX: 'auto', background: palette.panel, border: `1px solid ${palette.line}`, borderRadius: 10, padding: 4 }}>
-              {[['map', '▧'], ['effort', '▥'], ['elevation', '⌁'], ['speed', '◌']].map(([item, icon]) => <button key={item} onClick={() => setTab(item)} style={{ flex: 1, minWidth: 82, border: 0, borderRadius: 7, padding: '13px 8px', background: tab === item ? palette.cyan : 'transparent', color: tab === item ? palette.bg : palette.muted, fontFamily: C.fMono, fontSize: 10, textTransform: 'uppercase', cursor: 'pointer', boxShadow: tab === item ? `0 0 18px ${palette.cyan}70` : 'none' }}><span style={{ display: 'block', fontSize: 20, lineHeight: 1, marginBottom: 4 }}>{icon}</span>{item}</button>)}
+              {['map', 'effort', 'elevation', 'speed'].map(item => <button key={item} onClick={() => setTab(item)} style={{ flex: 1, minWidth: 92, border: 0, borderRadius: 7, padding: '15px 8px', background: tab === item ? palette.cyan : 'transparent', color: tab === item ? palette.bg : palette.muted, fontFamily: C.fMono, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', boxShadow: tab === item ? `0 0 18px ${palette.cyan}70` : 'none' }}>{item}</button>)}
             </div>
           </div>
 
@@ -434,18 +433,18 @@ export default function RideDetail({ ride, rides = [], detail, loading, onBack, 
           {tab === 'elevation' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="smoothedAltitude" color={palette.amber} label="Elevation" units="m" />{statLine('Ascent', `+${detail.ascent ?? '—'} m`, palette.amber)}{statLine('Descent', `−${detail.descent ?? '—'} m`, palette.blue)}</div>}
           {tab === 'speed' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="speed" color={palette.blue} label="Speed" units="m/s" />{statLine('Fastest sampled speed', detail.maxSpeedKmh != null ? `${detail.maxSpeedKmh} km/h` : 'Unavailable', palette.blue)}</div>}
 
-          <div style={{ ...panelStyle, marginTop: 10, borderColor: `${palette.amber}90`, background: `linear-gradient(110deg, ${palette.panelRaised}, ${palette.panel})`, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ color: palette.amber, fontSize: 27, lineHeight: 1 }}>🏆</div>
-            <div style={{ color: palette.text, fontSize: 15, lineHeight: 1.35, fontStyle: 'italic' }}>{rideStory}</div>
+          <div style={{ ...panelStyle, marginTop: 14, padding: '16px 20px', borderColor: `${palette.amber}90`, background: `linear-gradient(110deg, ${palette.panelRaised}, ${palette.panel})`, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ color: palette.amber, fontSize: 34, lineHeight: 1 }}>★</div>
+            <div style={{ color: palette.text, fontSize: 18, lineHeight: 1.35, fontStyle: 'italic' }}>{rideStory}</div>
           </div>
 
-          <div style={{ ...panelStyle, marginTop: 10 }}>
+          <div style={{ ...panelStyle, marginTop: 14, padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><div style={eyebrowStyle}>REPLAY ROUTE</div><button onClick={() => { setPlaying(false); setProgressIndex(maxIndex); }} style={{ background: 'transparent', border: 0, color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase', cursor: 'pointer' }}>Reset</button></div>
             <div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 10, margin: '7px 0 10px' }}>{Math.round((currentPoint?.normalizedDistance || 1) * finite(detail.distance, ride.distance))} km / {finite(detail.distance, ride.distance).toFixed(2)} km</div>
             <input aria-label="Replay route position" type="range" min="1" max={maxIndex} value={Math.min(maxIndex, progressIndex)} onChange={event => { setPlaying(false); setProgressIndex(Number(event.target.value)); }} style={{ width: '100%', accentColor: palette.cyan }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 13 }}>
-              <button onClick={() => { setProgressIndex(1); setPlaying(true); }} style={{ ...buttonStyle(palette.cyan, palette.bg), padding: '14px 12px', fontSize: 11 }}>{playing ? 'Ⅱ Pause replay' : '▶ Replay route'}</button>
-              <button onClick={() => setCompareOpen(open => !open)} style={{ ...buttonStyle('transparent', palette.text), border: `1px solid ${palette.cyan}`, padding: '14px 12px', fontSize: 11 }}>▣ Compare rides</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
+              <button onClick={() => { setProgressIndex(1); setPlaying(true); }} style={{ ...buttonStyle(palette.cyan, palette.bg), minHeight: 58, padding: '16px 12px', fontSize: 14 }}>{playing ? 'Ⅱ Pause replay' : '▶ Replay route'}</button>
+              <button onClick={() => setCompareOpen(open => !open)} style={{ ...buttonStyle('transparent', palette.text), minHeight: 58, border: `2px solid ${palette.cyan}`, padding: '16px 12px', fontSize: 14 }}>▣ Compare rides</button>
             </div>
           </div>
           {compareOpen && <div style={{ ...panelStyle, marginTop: 10, borderColor: `${palette.cyan}90`, background: `linear-gradient(115deg, ${palette.panelRaised}, ${palette.panel})` }}>

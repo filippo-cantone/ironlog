@@ -9,6 +9,12 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Added a Real map toggle that preserves OpenStreetMap context, a collapsed More ride data section, a five-metric comparison including peak heart rate, and a seven-item dark ride navigation that remains usable on phone widths
 - Centralised route projection, distance-marker selection, and null-safe comparison calculations in the tested ride analytics domain
 
+## 2026-11-11 — Ride replay reference fidelity pass (Codex)
+
+- Reworked the detail hierarchy so `RIDE COMPLETE` is the dominant poster title, with Outdoor Cycling, date, time, and Apple Watch metadata beneath it
+- Enlarged the route hero, profile, Explore the ride controls, story card, and replay actions for the approved phone-first composition
+- Strengthened the futuristic scene with procedural terrain ridges, contour layers, city blocks, roads, river lighting, route glow, and anchored real-data callouts without inventing route values
+
 ## 2026-11-10 — Import Apple Watch cycling rides (Codex)
 
 - Fixed [BUG-016](BUGS.md): Apple Watch cycling workouts now appear automatically in the Rides tab with distance, duration, active calories, average/peak heart rate, intensity, and an Apple Watch source label
