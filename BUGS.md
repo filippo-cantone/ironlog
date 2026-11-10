@@ -8,6 +8,11 @@ Format for commits: `Fix BUG-NNN: short description`
 
 ## Open
 
+### BUG-018 [IN PROGRESS — Codex] Ride replay does not match approved futuristic display direction
+**Opened:** 2026-11-10
+**Detail:** The ride detail screen exposes the real route and metrics, but the presentation is still a sparse technical prototype rather than the approved ride-complete composition. The route lacks prominent annotations, aligned elevation/heart-rate context, and a clear replay-focused hierarchy.
+**Planned fix:** Recompose the ride detail view around the approved visual direction while preserving real GPS geometry, measured metrics, duplicate-safe route selection, and existing fallbacks.
+
 ### BUG-015 [FIXED] Daily metric cards can present the last exported reading as today
 **Fixed:** 2026-11-05 by Codex
 **Detail:** If Health Auto Export omits a daily metric such as `step_count`, the app correctly retains the last known value but the Home card labels it as current and evaluates it against today's target.
