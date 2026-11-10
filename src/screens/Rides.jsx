@@ -40,7 +40,7 @@ export default function Rides({ rides = [], setRides, onCloudSave, onLoadRideDet
   const sorted = [...rides].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   if (selectedRide) {
-    return <RideDetail ride={selectedRide} detail={selectedDetail} loading={detailLoading} onBack={() => { setSelectedRide(null); setSelectedDetail(null); }} onLoad={onLoadRideDetail} />;
+    return <RideDetail ride={selectedRide} rides={rides} detail={selectedDetail} loading={detailLoading} onBack={() => { setSelectedRide(null); setSelectedDetail(null); }} onLoad={onLoadRideDetail} />;
   }
 
   return (

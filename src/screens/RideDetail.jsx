@@ -322,10 +322,11 @@ function RouteProfile({ detail }) {
   );
 }
 
-export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
+export default function RideDetail({ ride, rides = [], detail, loading, onBack, onLoad }) {
   const [tab, setTab] = useState('map');
   const [progressIndex, setProgressIndex] = useState(() => Math.max(1, (detail?.points?.length || 2) - 1));
   const [playing, setPlaying] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const maxIndex = Math.max(1, (detail?.points?.length || 2) - 1);
 
   useEffect(() => {
@@ -359,6 +360,14 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
   const rideStory = strongestClimbGain > 0
     ? `Your strongest rise added ${strongestClimbGain} m of elevation. Heart rate peaked at ${detail?.peakHeartRate ?? '—'} bpm.`
     : `This was a mostly level route. Your peak heart rate reached ${detail?.peakHeartRate ?? '—'} bpm across the ride.`;
+  const comparisonRide = [...rides]
+    .filter(item => item.id !== ride?.id && item.sourceId !== ride?.sourceId && item.source_id !== ride?.source_id)
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0];
+  const metricDelta = (field, digits = 0) => {
+    if (!comparisonRide || ride?.[field] == null || comparisonRide?.[field] == null) return '—';
+    const delta = Number(ride[field]) - Number(comparisonRide[field]);
+    return `${delta >= 0 ? '+' : ''}${delta.toFixed(digits)}`;
+  };
   const isManual = !ride?.sourceId && !ride?.source_id;
   if (loading) return <div style={{ minHeight: '80vh', background: palette.bg, color: palette.cyan, padding: 24, fontFamily: C.fMono, letterSpacing: 1 }}>LOADING RIDE ROUTE…</div>;
 
@@ -422,19 +431,28 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
           </div>
 
           <div style={{ ...panelStyle, marginTop: 10, borderColor: `${palette.amber}90`, background: `linear-gradient(110deg, ${palette.panelRaised}, ${palette.panel})`, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ color: palette.amber, fontSize: 27, lineHeight: 1 }}>★</div>
+            <div style={{ color: palette.amber, fontSize: 27, lineHeight: 1 }}>🏆</div>
             <div style={{ color: palette.text, fontSize: 15, lineHeight: 1.35, fontStyle: 'italic' }}>{rideStory}</div>
           </div>
 
           <div style={{ ...panelStyle, marginTop: 10 }}>
-            <div style={eyebrowStyle}>REPLAY ROUTE</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><div style={eyebrowStyle}>REPLAY ROUTE</div><button onClick={() => { setPlaying(false); setProgressIndex(maxIndex); }} style={{ background: 'transparent', border: 0, color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase', cursor: 'pointer' }}>Reset</button></div>
             <div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 10, margin: '7px 0 10px' }}>{Math.round((currentPoint?.normalizedDistance || 1) * finite(detail.distance, ride.distance))} km / {finite(detail.distance, ride.distance).toFixed(2)} km</div>
             <input aria-label="Replay route position" type="range" min="1" max={maxIndex} value={Math.min(maxIndex, progressIndex)} onChange={event => { setPlaying(false); setProgressIndex(Number(event.target.value)); }} style={{ width: '100%', accentColor: palette.cyan }} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button onClick={() => { setProgressIndex(1); setPlaying(true); }} style={{ ...buttonStyle(palette.cyan, palette.bg), flex: 1 }}>{playing ? 'Pause replay' : 'Replay route'}</button>
-              <button onClick={() => { setPlaying(false); setProgressIndex(maxIndex); }} style={{ ...buttonStyle('transparent', palette.text), border: `1px solid ${palette.line}` }}>Reset</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 13 }}>
+              <button onClick={() => { setProgressIndex(1); setPlaying(true); }} style={{ ...buttonStyle(palette.cyan, palette.bg), padding: '14px 12px', fontSize: 11 }}>{playing ? 'Ⅱ Pause replay' : '▶ Replay route'}</button>
+              <button onClick={() => setCompareOpen(open => !open)} style={{ ...buttonStyle('transparent', palette.text), border: `1px solid ${palette.cyan}`, padding: '14px 12px', fontSize: 11 }}>▣ Compare rides</button>
             </div>
           </div>
+          {compareOpen && <div style={{ ...panelStyle, marginTop: 10, borderColor: `${palette.cyan}90`, background: `linear-gradient(115deg, ${palette.panelRaised}, ${palette.panel})` }}>
+            <div style={eyebrowStyle}>RIDE COMPARISON</div>
+            {comparisonRide ? <>
+              <div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 10, margin: '7px 0 12px' }}>Selected ride vs {formatDate(comparisonRide.date)}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                {[['Distance', 'distance', 2, palette.cyan], ['Duration', 'duration', 0, palette.blue], ['Energy', 'activeCalories', 0, palette.amber], ['Avg HR', 'averageHeartRate', 0, palette.teal]].map(([label, field, digits, color]) => <div key={field} style={{ padding: '9px 7px', border: `1px solid ${palette.line}`, borderRadius: 6 }}><div style={{ color, fontFamily: C.fMono, fontSize: 15 }}>{metricDelta(field, digits)}</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 8, textTransform: 'uppercase', marginTop: 5 }}>{label}</div></div>)}
+              </div>
+            </> : <div style={{ color: palette.muted, lineHeight: 1.45, marginTop: 8 }}>A second ride is needed before IronLog can compare this route.</div>}
+          </div>}
         </>
       ) : null}
     </div>
