@@ -13,6 +13,11 @@ Format for commits: `Fix BUG-NNN: short description`
 **Detail:** If Health Auto Export omits a daily metric such as `step_count`, the app correctly retains the last known value but the Home card labels it as current and evaluates it against today's target.
 **Fix applied:** Home metric cards and their detail modals now show the latest reading date, label missing current-day data explicitly, and avoid applying today's step target to a stale reading. The detail explanation directs the user to verify the relevant Health Auto Export metric and export again.
 
+### BUG-017 [IN PROGRESS — Codex] Apple Watch rides cannot be explored as route replays
+**Opened:** 2026-11-10
+**Detail:** Apple Watch cycling exports contain GPS route, altitude, speed, and timestamp data, but the Rides tab only shows summary cards. Duplicate records can expose multiple overlapping traces if route data is rendered without canonical selection.
+**Planned fix:** Add lazy canonical route loading, route analytics, a private map/replay detail view, and fallback rendering for missing route or map data.
+
 ### BUG-016 [FIXED] Apple Watch cycling workouts are not materialised as rides
 **Opened:** 2026-11-10
 **Fixed:** 2026-11-10 by Codex
