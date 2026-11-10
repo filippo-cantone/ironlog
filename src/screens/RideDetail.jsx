@@ -34,6 +34,18 @@ function routeBounds(points) {
   };
 }
 
+function routePointPosition(points, index) {
+  const bounds = routeBounds(points);
+  const point = points[index];
+  if (!bounds || !point) return null;
+  const lonSpan = Math.max(0.00001, bounds.maxLon - bounds.minLon);
+  const latSpan = Math.max(0.00001, bounds.maxLat - bounds.minLat);
+  return {
+    left: 7 + ((point.longitude - bounds.minLon) / lonSpan) * 86,
+    top: 14 + (1 - ((point.latitude - bounds.minLat) / latSpan)) * 68,
+  };
+}
+
 function progressGeoJson(points = []) {
   return {
     type: 'FeatureCollection',
@@ -87,6 +99,11 @@ function RideMap({ detail, progressIndex }) {
   const routeSourceRef = useRef(null);
   const [mapFailed, setMapFailed] = useState(false);
   const points = detail?.points || [];
+  const routeLabels = [1, 5, 10, 15]
+    .map(km => points.reduce((best, point, index) => Math.abs(Number(point.distanceKm || 0) - km) < Math.abs(Number(points[best]?.distanceKm || 0) - km) ? index : best, 0))
+    .filter((index, position, all) => points[index] && all.indexOf(index) === position)
+    .map(index => ({ index, position: routePointPosition(points, index), label: `${Math.round(points[index].distanceKm)} km` }))
+    .filter(item => item.position);
 
   useEffect(() => {
     if (!containerRef.current || points.length < 2 || !window.maplibregl) {
@@ -137,12 +154,19 @@ function RideMap({ detail, progressIndex }) {
   }, [points, progressIndex]);
 
   return (
-    <div style={{ position: 'relative', height: 370, overflow: 'hidden', background: '#081522', borderRadius: 10, border: `1px solid ${palette.line}`, boxShadow: `0 0 24px ${palette.cyan}18 inset` }}>
+    <div style={{ position: 'relative', height: 430, overflow: 'hidden', background: '#081522', borderRadius: 10, border: `1px solid ${palette.line}`, boxShadow: `0 0 24px ${palette.cyan}18 inset` }}>
       {!mapFailed && <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />}
       {mapFailed && <RouteSvg detail={detail} progressIndex={progressIndex} compact />}
       <div style={{ position: 'absolute', top: 12, left: 12, padding: '7px 11px', borderRadius: 5, background: 'rgba(7,17,29,0.9)', color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 1.5, boxShadow: `0 0 14px ${palette.cyan}30` }}>REAL ROUTE · {mapFailed ? 'VECTOR MODE' : 'MAP MODE'}</div>
-      <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, maxWidth: '54%' }}>
-        {routeMoments(detail).map(moment => <div key={moment.label} style={{ background: 'rgba(7,17,29,0.92)', border: `1px solid ${moment.color}`, borderRadius: 7, padding: '6px 9px', color: moment.color, fontFamily: C.fMono, fontSize: 9, letterSpacing: 0.8, textAlign: 'right', boxShadow: `0 0 14px ${moment.color}25` }}><strong style={{ display: 'block', fontSize: 9 }}>{moment.label}</strong><span style={{ color: palette.text }}>{moment.value}</span></div>)}
+      <div style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, border: `1px solid ${palette.cyan}`, borderRadius: '50%', color: palette.text, display: 'grid', placeItems: 'center', background: 'rgba(7,17,29,0.78)', fontFamily: C.fMono, fontSize: 10, lineHeight: 1.05, textAlign: 'center' }}>N<span style={{ color: palette.cyan, fontSize: 15 }}>▲</span></div>
+      <div style={{ position: 'absolute', top: 56, right: 12, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, maxWidth: '54%' }}>
+        {routeMoments(detail).slice(0, 2).map(moment => <div key={moment.label} style={{ background: 'rgba(7,17,29,0.92)', border: `1px solid ${moment.color}`, borderRadius: 7, padding: '6px 9px', color: moment.color, fontFamily: C.fMono, fontSize: 9, letterSpacing: 0.8, textAlign: 'right', boxShadow: `0 0 14px ${moment.color}25` }}><strong style={{ display: 'block', fontSize: 9 }}>{moment.label}</strong><span style={{ color: palette.text }}>{moment.value}</span></div>)}
+      </div>
+      {routeLabels.map(item => <span key={item.index} style={{ position: 'absolute', left: `${item.position.left}%`, top: `${item.position.top}%`, transform: 'translate(-50%, -50%)', padding: '4px 7px', borderRadius: 12, background: 'rgba(7,17,29,0.9)', border: `1px solid ${palette.cyan}90`, color: palette.text, fontFamily: C.fMono, fontSize: 9, whiteSpace: 'nowrap', boxShadow: `0 0 10px ${palette.cyan}25` }}>{item.label}</span>)}
+      <div style={{ position: 'absolute', right: 12, bottom: 12, display: 'flex', flexDirection: 'column', gap: 4, padding: '7px 9px', borderRadius: 6, background: 'rgba(7,17,29,0.88)', border: `1px solid ${palette.line}`, color: palette.muted, fontFamily: C.fMono, fontSize: 8, letterSpacing: 0.4 }}>
+        <span><i style={{ display: 'inline-block', width: 20, height: 3, background: palette.cyan, verticalAlign: 'middle', marginRight: 5 }} />ROUTE</span>
+        <span><i style={{ display: 'inline-block', width: 20, height: 3, background: palette.amber, verticalAlign: 'middle', marginRight: 5 }} />CLIMB</span>
+        <span><i style={{ display: 'inline-block', width: 20, height: 3, background: palette.coral, verticalAlign: 'middle', marginRight: 5 }} />HIGH HR</span>
       </div>
       <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12, display: 'flex', justifyContent: 'space-between', pointerEvents: 'none' }}>
         <span style={{ ...routeMarkerStyle(palette.teal), borderRadius: '5px 18px 18px 5px' }}>● START</span>
@@ -229,7 +253,8 @@ function ProfileChart({ points = [], field, color, label, units = '' }) {
 }
 
 function Metric({ value, label, color = palette.cyan }) {
-  return <div style={{ flex: 1, minWidth: 104, padding: '13px 11px', borderRight: `1px solid ${palette.line}` }}><div style={{ color, fontFamily: C.fMono, fontSize: 23, fontWeight: 700, lineHeight: 1.05 }}>{value}</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 }}>{label}</div></div>;
+  const icon = { Distance: '⌁', Duration: '◷', Energy: 'ϟ', 'Avg HR': '♥', 'Peak HR': '♥' }[label] || '·';
+  return <div style={{ flex: 1, minWidth: 104, padding: '13px 11px', borderRight: `1px solid ${palette.line}` }}><div style={{ color, fontFamily: C.fMono, fontSize: 23, fontWeight: 700, lineHeight: 1.05, whiteSpace: 'nowrap' }}><span style={{ fontSize: 18, marginRight: 4 }}>{icon}</span>{value}</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 }}>{label}</div></div>;
 }
 
 function routeDistance(detail, index) {
@@ -304,6 +329,16 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
   const maxIndex = Math.max(1, (detail?.points?.length || 2) - 1);
 
   useEffect(() => {
+    document.documentElement.style.setProperty('--ironlog-ride-nav-bg', palette.bg);
+    document.documentElement.style.setProperty('--ironlog-ride-nav-border', palette.line);
+    document.documentElement.style.setProperty('--ironlog-ride-nav-active', palette.cyan);
+    document.documentElement.style.setProperty('--ironlog-ride-nav-muted', palette.muted);
+    return () => {
+      ['bg', 'border', 'active', 'muted'].forEach(key => document.documentElement.style.removeProperty(`--ironlog-ride-nav-${key}`));
+    };
+  }, []);
+
+  useEffect(() => {
     setProgressIndex(maxIndex);
     setPlaying(false);
   }, [detail?.sourceId, maxIndex]);
@@ -328,10 +363,14 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
   if (loading) return <div style={{ minHeight: '80vh', background: palette.bg, color: palette.cyan, padding: 24, fontFamily: C.fMono, letterSpacing: 1 }}>LOADING RIDE ROUTE…</div>;
 
   return (
-    <div style={{ minHeight: '100vh', background: palette.bg, color: palette.text, padding: '14px 12px 100px', fontFamily: C.fBody }}>
-      <button onClick={onBack} style={{ background: 'transparent', border: 0, color: palette.muted, fontFamily: C.fMono, fontSize: 11, letterSpacing: 1, padding: '4px 0 14px', cursor: 'pointer' }}>← BACK TO RIDES</button>
+    <div style={{ minHeight: '100vh', background: palette.bg, color: palette.text, padding: '10px 12px 104px', fontFamily: C.fBody, maxWidth: 1180, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 2px 13px', borderBottom: `1px solid ${palette.line}80`, marginBottom: 14 }}>
+        <div style={{ color: palette.text, fontFamily: C.fDisplay, fontSize: 18, fontStyle: 'italic', fontWeight: 700, letterSpacing: 0.5 }}><span style={{ color: palette.cyan, marginRight: 7 }}>//</span>IronLog</div>
+        <div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1.6 }}>RIDE SYSTEM / 01</div>
+      </div>
+      <button onClick={onBack} style={{ background: 'transparent', border: 0, color: palette.muted, fontFamily: C.fMono, fontSize: 11, letterSpacing: 1, padding: '0 0 14px', cursor: 'pointer' }}>← BACK TO RIDES</button>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-        <div><div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2 }}>RIDE COMPLETE</div><h1 style={{ margin: '3px 0 4px', fontFamily: C.fDisplay, fontSize: 34, textTransform: 'uppercase', lineHeight: 0.95 }}>{ride?.type === 'moderate' ? 'Outdoor cycling' : `${ride?.type || 'Cycling'} ride`}</h1><div style={{ color: palette.muted, fontSize: 13 }}>{formatDate(ride?.date)} {ride?.date && `· ${formatClock(ride.date)}`}</div></div>
+        <div><div style={{ color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2 }}>RIDE COMPLETE</div><h1 style={{ margin: '3px 0 4px', fontFamily: C.fDisplay, fontSize: 42, textTransform: 'uppercase', lineHeight: 0.95, letterSpacing: 0.3 }}>{ride?.type === 'moderate' ? 'Outdoor cycling' : `${ride?.type || 'Cycling'} ride`}</h1><div style={{ color: palette.muted, fontSize: 14 }}>{formatDate(ride?.date)} {ride?.date && `· ${formatClock(ride.date)}`}</div></div>
         <div style={{ ...pillStyle(palette.blue), whiteSpace: 'nowrap' }}>{ride?.source === 'apple_health' ? 'Apple Watch' : 'Manual ride'}</div>
       </div>
 

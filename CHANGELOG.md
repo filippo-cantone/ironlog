@@ -27,6 +27,7 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Added real-route start/finish markers, climb/peak/recovery callouts, a combined elevation and heart-rate profile, colored effort ribbon, metric strip, and “Explore the ride” control band
 - Added a replay story card driven by the actual route analytics; no synthetic route geometry or invented performance values are used
 - Peak-heart-rate route annotations now use the nearest real Watch sample instead of disappearing when the summary maximum is not sampled exactly
+- Refined the composition again toward the approved reference: IronLog ride header, distance markers, compass and route legend, stronger hero proportions, metric icons, and a dark ride-specific navigation treatment
 
 ## 2026-11-05 — Label stale daily Health readings (Codex)
 
