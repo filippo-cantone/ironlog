@@ -94,11 +94,11 @@ ironlog/
 │   ├── ui/theme.js          ← shared colours, typography, and style tokens
 │   ├── ui/charts/           ← shared chart geometry and metric colour helpers
 │   ├── ui/Nav.jsx           ← shared bottom navigation
-│   ├── screens/             ← extracted Dashboard, ActiveWorkout, Health, History, Manage, PreStart, Progress, and Rides screens
+│   ├── screens/             ← extracted Dashboard, ActiveWorkout, Health, History, Manage, PreStart, Progress, Rides, and RideDetail screens
 │   ├── data/workouts.js     ← canonical A/B/C and Iron Series programmes
 │   ├── data/exercises.js    ← preset/Iron Series exercise and muscle metadata
 │   ├── data/mobility.js     ← warm-up, stretch, and mobility safety catalogues
-│   ├── domain/              ← pure session, health, progression logic (including HRV-led readiness)
+│   ├── domain/              ← pure session, health, progression, ride, and route-replay logic (including HRV-led readiness)
 │   ├── storage/             ← validated persistence and backup/import helpers
 │   ├── integrations/        ← Supabase sync and AI coach transport helpers
 │   └── ../supabase/functions/ironlog-ai-explain/ ← provider fallback Edge Function
@@ -163,6 +163,12 @@ IronLog uses Apple Health and Apple Watch for activity evidence. Google Fit is a
 The local preference key is `il_activity_goals`. JSON backups at schema version 3 include activity goals and health data when present.
 - Sleep is reported separately. Seven hours is used as the general adult minimum from the AASM consensus statement; deep, core, and REM stages remain descriptive because wearable stage estimates are less reliable than total sleep and sleep/wake detection.
 - Pain and medical-safety constraints always override readiness suggestions. A suppressed HRV trend reduces planned intensity or volume; it does not automatically prohibit all movement.
+
+### Futuristic ride replay
+
+Apple Watch cycling rides can be opened from **Rides** for a private route replay. The selected ride loads its GPS route and matching Watch samples on demand, so startup remains lightweight and exact coordinates are not included in AI context. The detail view provides Map, Effort, Elevation, and Speed views, a replay slider, pause/restart controls, start/finish markers, elevation and effort overlays, estimated ascent/descent, and a route data-confidence label.
+
+When Health Auto Export creates duplicate Apple cycling records, IronLog selects the most complete record and retains the other source IDs for audit. It never merges duplicate routes. Map tiles use OpenStreetMap-compatible tiles with attribution; if tiles or WebGL are unavailable, IronLog falls back to a dark vector route scene. Manual rides remain available without GPS replay.
 
 ### 1. THEME (`C` object)
 All colours and font names in a single object. Change colours here to restyle the whole app.

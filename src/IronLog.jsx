@@ -24,6 +24,7 @@ import buildAiContext from './domain/aiContext.js';
 import aiCoachDomain from './integrations/aiCoach.js';
 import activityDomain from './domain/activity.js';
 import rideDomain from './domain/rides.js';
+import rideReplayDomain from './domain/rideReplay.js';
 
 const { migrateSession, migrateSessions } = sessionDomain;
 const { detectPRs, checkOverloadNudges } = progressionDomain;
@@ -35,6 +36,7 @@ const {
   summarizeWeeklyActivity, buildSleepTimeline, calculateWeightTrend, buildGoalCoaching,
 } = activityDomain;
 const { dedupeAppleCyclingWorkouts, extractDistanceKm, syncAppleCyclingRides } = rideDomain;
+const { buildRouteAnalytics } = rideReplayDomain;
 const { C, st, dash } = theme;
 const { smoothLinePath, chartColorKey, metricChartColorKey, metricStatusColor, gradientStopsForPoints: chartGradientStops } = chartDomain;
 const { WORKOUTS, IRON_WORKOUTS } = workoutData;
@@ -447,13 +449,18 @@ async function pullWatchWorkouts() {
     if (cyclingRawRes.error) console.warn('IronLog restore (cycling workout details):', cyclingRawRes.error);
     if (sampleRes.error) console.warn('IronLog restore (watch samples):', sampleRes.error);
     if (ecgRes.error) console.warn('IronLog restore (ecg):', ecgRes.error);
-    const rawDistanceById = new Map((cyclingRawRes.data || []).map(row => {
+    const cyclingMetaById = new Map((cyclingRawRes.data || []).map(row => {
       const distance = extractDistanceKm({ raw: row?.raw });
-      return distance == null ? null : [String(row.source_id), distance];
-    }).filter(Boolean));
+      const routePointCount = Array.isArray(row?.raw?.route) ? row.raw.route.length : 0;
+      return [String(row.source_id), { distance, routePointCount }];
+    }));
     const workouts = dedupeAppleCyclingWorkouts((workoutRes.data || []).map(workout => {
-      const distance = rawDistanceById.get(String(workout.source_id));
-      return distance == null ? workout : { ...workout, distance_km: distance };
+      const meta = cyclingMetaById.get(String(workout.source_id));
+      return !meta ? workout : {
+        ...workout,
+        ...(meta.distance == null ? {} : { distance_km: meta.distance }),
+        route_point_count: meta.routePointCount,
+      };
     }));
     return {
       matches: matchRes.data || [],
@@ -463,6 +470,56 @@ async function pullWatchWorkouts() {
     };
   } catch (e) { console.warn('IronLog restore (watch):', e); }
   return { matches: [], workouts: [], samples: [], ecg: [] };
+}
+
+async function pullAppleRideDetail(sourceId) {
+  if (!db || !sourceId) return { ok: false, error: 'Apple Watch ride is unavailable.' };
+  try {
+    const [workoutRes, sampleRes] = await Promise.all([
+      db.from('apple_workouts')
+        .select('source_id,name,local_date,start_at,end_at,duration_sec,active_energy_kcal,avg_heart_rate,max_heart_rate,intensity,raw')
+        .eq('source_id', sourceId)
+        .maybeSingle(),
+      db.from('apple_workout_samples')
+        .select('workout_source_id,sample_type,sample_at,value,unit')
+        .eq('workout_source_id', sourceId)
+        .order('sample_at', { ascending: true }),
+    ]);
+    if (workoutRes.error) throw workoutRes.error;
+    if (!workoutRes.data) return { ok: false, error: 'No Apple Watch route was found for this ride.' };
+    const workout = workoutRes.data;
+    const raw = workout.raw || {};
+    const samples = sampleRes.data || [];
+    const heartRateSamples = samples.filter(sample => /heart.?rate/i.test(String(sample.sample_type || '')));
+    const energySamples = samples.filter(sample => /energy|calorie/i.test(String(sample.sample_type || '')));
+    const fallbackHeartRate = Array.isArray(raw.heartRateData) ? raw.heartRateData.map(sample => ({
+      sample_at: sample.date,
+      value: sample.Avg ?? sample.avg ?? sample.qty,
+      sample_type: 'heart_rate',
+    })) : [];
+    const detail = buildRouteAnalytics({
+      points: raw.route || [],
+      heartRateSamples: heartRateSamples.length ? heartRateSamples : fallbackHeartRate,
+      energySamples,
+      averageHeartRate: workout.avg_heart_rate,
+      peakHeartRate: workout.max_heart_rate,
+      distance: extractDistanceKm({ raw }),
+      duration: workout.duration_sec ? Number(workout.duration_sec) / 60 : null,
+    });
+    return {
+      ok: true,
+      sourceId,
+      name: workout.name,
+      localDate: workout.local_date,
+      startAt: workout.start_at,
+      endAt: workout.end_at,
+      activeCalories: Number(workout.active_energy_kcal) || null,
+      ...detail,
+    };
+  } catch (error) {
+    console.warn('IronLog restore (ride detail):', error);
+    return { ok: false, error: 'Ride detail could not be loaded.' };
+  }
 }
 
 function reconcileAppleCyclingRides(previousRides, watchSnapshot) {
@@ -5139,6 +5196,7 @@ export default function App() {
     sleepDeep: [], sleepRem: [], sleepCore: [], sleepAwake: [], sleepInBed: [], sleepEfficiency: [],
   });
   const [watchData, setWatchData] = useState({ matches: [], workouts: [], samples: [], ecg: [] });
+  const rideDetailCacheRef = useRef({});
   const [activityGoals, setActivityGoals] = useState(() => {
     try { return normaliseGoals(safeParse(localStorage.getItem('il_activity_goals'), DEFAULT_ACTIVITY_GOALS)); }
     catch { return normaliseGoals(DEFAULT_ACTIVITY_GOALS); }
@@ -5155,6 +5213,15 @@ export default function App() {
   const sleepTimeline = buildSleepTimeline(healthData);
   const weightTrend = calculateWeightTrend(healthData.weight);
   const goalCoaching = buildGoalCoaching({ activitySummary, readiness: recovery, sessions, goals: activityGoals });
+
+  const loadRideDetail = useCallback(async ride => {
+    const sourceId = ride?.sourceId || ride?.source_id;
+    if (!sourceId) return { ok: false, error: 'This manual ride has no Apple Watch route.' };
+    if (rideDetailCacheRef.current[sourceId]) return rideDetailCacheRef.current[sourceId];
+    const detail = await pullAppleRideDetail(sourceId);
+    if (detail?.ok) rideDetailCacheRef.current[sourceId] = detail;
+    return detail;
+  }, []);
 
   useEffect(() => {
     dataRef.current = { sessions, rides, customExercises, workoutCustom, activityGoals, healthData };
@@ -5566,7 +5633,7 @@ export default function App() {
             }}
           />
         )}
-        {view === 'rides' && <RidesScreen rides={rides} setRides={setRides} onCloudSave={pushRide} />}
+        {view === 'rides' && <RidesScreen rides={rides} setRides={setRides} onCloudSave={pushRide} onLoadRideDetail={loadRideDetail} />}
         {view === 'manage' && (
           <ManageScreenModule
             customExercises={customExercises}

@@ -1,15 +1,32 @@
 import React, { useState } from '../runtime.js';
 import theme from '../ui/theme.js';
+import RideDetail from './RideDetail.jsx';
 
 const { C, st } = theme;
 
-export default function Rides({ rides = [], setRides, onCloudSave }) {
+export default function Rides({ rides = [], setRides, onCloudSave, onLoadRideDetail }) {
   const [open, setOpen] = useState(false);
   const [dur, setDur] = useState('');
   const [dist, setDist] = useState('');
   const [rpe, setRpe] = useState('');
   const [type, setType] = useState('moderate');
   const [notes, setNotes] = useState('');
+  const [selectedRide, setSelectedRide] = useState(null);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  async function openRide(ride) {
+    setSelectedRide(ride);
+    setSelectedDetail(null);
+    if (!ride?.sourceId && !ride?.source_id) return;
+    setDetailLoading(true);
+    try {
+      const detail = await onLoadRideDetail?.(ride);
+      setSelectedDetail(detail || { ok: false, error: 'Ride detail could not be loaded.' });
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   function log() {
     if (!dur) return;
@@ -21,6 +38,10 @@ export default function Rides({ rides = [], setRides, onCloudSave }) {
 
   const typeColor = { easy: C.green, moderate: C.amber, hard: C.blue, hilly: C.amber, recovery: C.green, intervals: C.blue, sprinkles: C.blue, tempo: C.amber, long: C.green };
   const sorted = [...rides].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  if (selectedRide) {
+    return <RideDetail ride={selectedRide} detail={selectedDetail} loading={detailLoading} onBack={() => { setSelectedRide(null); setSelectedDetail(null); }} onLoad={onLoadRideDetail} />;
+  }
 
   return (
     <div style={{ padding: 16 }}>
@@ -87,7 +108,7 @@ export default function Rides({ rides = [], setRides, onCloudSave }) {
       ) : (
         <div style={{ ...st.col() }}>
           {sorted.map(ride => (
-            <div key={ride.id} style={{ ...st.card(), display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px' }}>
+            <div key={ride.id} onClick={() => openRide(ride)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') openRide(ride); }} role="button" tabIndex={0} style={{ ...st.card(), display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', cursor: 'pointer' }}>
               <div>
                 <div style={{ ...st.row, marginBottom: 4 }}>
                   <span style={st.pill(typeColor[ride.type] || C.muted)}>{ride.type}</span>

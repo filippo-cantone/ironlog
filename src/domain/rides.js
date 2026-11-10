@@ -98,6 +98,7 @@ function workoutCompleteness(workout) {
     asNumber(workout?.avg_heart_rate ?? workout?.averageHeartRate),
     asNumber(workout?.max_heart_rate ?? workout?.peakHeartRate),
     asNumber(workout?.intensity),
+    asNumber(workout?.route_point_count ?? workout?.routePointCount) > 0 ? 1 : null,
   ];
   return fields.filter(value => value != null).length;
 }
@@ -129,9 +130,17 @@ function dedupeAppleCyclingWorkouts(workouts = []) {
       canonical.push(workout);
       return;
     }
-    if (workoutCompleteness(workout) > workoutCompleteness(canonical[duplicateIndex])) {
-      canonical[duplicateIndex] = workout;
-    }
+    const existing = canonical[duplicateIndex];
+    const winner = workoutCompleteness(workout) > workoutCompleteness(existing) ? workout : existing;
+    const duplicateSourceIds = [
+      ...(existing?.duplicate_source_ids || []),
+      workoutSourceId(existing),
+      ...(workout?.duplicate_source_ids || []),
+      workoutSourceId(workout),
+    ].filter(Boolean).filter((sourceId, index, all) => all.indexOf(sourceId) === index);
+    canonical[duplicateIndex] = duplicateSourceIds.length > 1
+      ? { ...winner, duplicate_source_ids: duplicateSourceIds }
+      : winner;
   });
 
   return [...nonCycling, ...canonical].sort((a, b) => (workoutStartMs(b) || 0) - (workoutStartMs(a) || 0));
@@ -176,6 +185,7 @@ function appleWorkoutToRide(workout) {
     averageHeartRate,
     peakHeartRate,
     watchIntensity: asNumber(workout?.intensity),
+    duplicateSourceIds: workout?.duplicate_source_ids || [],
   };
 }
 

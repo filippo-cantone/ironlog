@@ -11,6 +11,7 @@ import importExport from '../src/storage/importExport.js';
 import activity from '../src/domain/activity.js';
 import painNotes from '../src/domain/painNotes.js';
 import ridesDomain from '../src/domain/rides.js';
+import rideReplay from '../src/domain/rideReplay.js';
 
 const { detectPRs, checkOverloadNudges } = progression;
 const { migrateSession, withSetStarted, withSetCompleted } = session;
@@ -24,6 +25,7 @@ const {
 } = activity;
 const { buildPainNoteReview, hasPainReviewSignals, shouldPromptPainReview, symptomReviewRules } = painNotes;
 const { extractDistanceKm, syncAppleCyclingRides } = ridesDomain;
+const { haversineKm, downsampleRoutePoints, smoothAltitude, buildRouteAnalytics } = rideReplay;
 
 const exercises = { bench: { name: 'Bench', unit: 'kg', defaultReps: 8, repMax: 10 } };
 
@@ -65,6 +67,32 @@ test('Apple cycling rides replace matching manual entries and remove duplicate w
 test('Apple cycling distance is read from Health Auto Export raw values', () => {
   assert.equal(extractDistanceKm({ raw: { distance: { qty: 17.6, units: 'km' } } }), 17.6);
   assert.equal(extractDistanceKm({ raw: { distance: { qty: 17600, units: 'm' } } }), 17.6);
+});
+
+test('ride replay analytics keep one bounded route and align effort data', () => {
+  const points = Array.from({ length: 30 }, (_, index) => ({
+    latitude: -37.8 + index * 0.0001,
+    longitude: 144.7 + index * 0.0001,
+    altitude: index % 4 === 0 ? 100 + index : 100 + index * 0.5,
+    speed: 4 + index / 10,
+    timestamp: `2026-11-10T06:${String(index).padStart(2, '0')}:00Z`,
+  }));
+  const detail = buildRouteAnalytics({
+    points,
+    heartRateSamples: [{ sample_type: 'heart_rate', sample_at: '2026-11-10T06:10:00Z', value: 130 }],
+    averageHeartRate: 112,
+    peakHeartRate: 130,
+    distance: 17.63,
+    duration: 56,
+  });
+  assert.equal(haversineKm(points[0], points[1]) > 0, true);
+  assert.equal(downsampleRoutePoints(points, 10).length <= 10, true);
+  assert.equal(smoothAltitude(points).every(point => point.smoothedAltitude != null), true);
+  assert.equal(detail.points[0].latitude, points[0].latitude);
+  assert.equal(detail.points.at(-1).longitude, points.at(-1).longitude);
+  assert.equal(detail.distance, 17.63);
+  assert.equal(detail.heartRateSampleCount, 1);
+  assert.equal(['good', 'limited', 'sparse'].includes(detail.confidence), true);
 });
 
 test('progression ignores incomplete sets and gates pain/RPE', () => {

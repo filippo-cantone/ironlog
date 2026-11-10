@@ -96,8 +96,8 @@ Iron Series programme fully integrated. 30-day Caroline Girvan dumbbell programm
 - ✅ Workout effort review — Codex: completed workouts in Log now show Apple Watch session summary, HR timeline, exercise effort, and set-level HR/kcal/sample-confidence detail
 - ✅ Apple Watch cycling rides — Codex: cycling exports are deduplicated, enriched with raw-export distance, and automatically materialised in Rides with calories and heart-rate summary
 - ✅ Manual ride replacement — Codex: matching manual cycling entries are removed when the corresponding Apple Watch record arrives; unrelated historical rides remain
-- 🔄 **Futuristic ride replay — in progress (Codex):** lazy canonical GPS route loading, real map context, elevation/effort overlays, and user-triggered replay detail view
-- 🔄 Next: review accuracy over several timestamped workouts and tune confidence rules if Apple Watch samples remain too sparse for set-level guidance
+- ✅ **Futuristic ride replay — complete (Codex, 2026-11-10):** duplicate-safe canonical GPS route selection, lazy route/sample loading, real OpenStreetMap context, futuristic vector/WebGL fallback, elevation and effort views, and user-triggered replay controls
+- 🔄 Next: review accuracy over several rides and tune confidence rules if Apple Watch samples remain too sparse for route-level effort guidance
 - 🔄 Next: live-device polish after Phill tests Safari/PWA cache, first-screen fit, and whether the recommendation language feels useful during actual training days
 
 ### Iron Series — status

@@ -8,6 +8,14 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Deduplicated equivalent Apple cycling records from Health Auto Export and removed the two matching manual rides from 10 November while preserving the older May ride
 - Prevented Activity Balance from counting an Apple-sourced ride both as a ride and as a raw Watch workout
 
+## 2026-11-10 — Futuristic Apple Watch ride replay (Codex)
+
+- Fixed [BUG-017](BUGS.md): Apple Watch cycling rides now open a dedicated route detail view with real GPS geometry, map context, elevation, speed, heart-rate effort, and replay controls
+- Canonical route selection now keeps the richest duplicate record, preserves duplicate source IDs for audit, and never merges overlapping Apple exports into one route
+- Route and sample data load only when an Apple Watch ride is opened; manual rides and rides without GPS show a safe summary fallback
+- Added bounded route analytics for distance, smoothed altitude, estimated ascent/descent, timestamp-aligned heart rate, effort zones, data confidence, and route visualisation
+- Added MapLibre/OpenStreetMap map context, Three.js elevation treatment, and a vector fallback for unavailable map/WebGL resources
+
 ## 2026-11-05 — Label stale daily Health readings (Codex)
 
 - Fixed [BUG-015](BUGS.md): Home metric cards no longer present a previous day's reading as today's result when Health Auto Export omits the current-day metric
