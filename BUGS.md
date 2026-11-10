@@ -8,10 +8,11 @@ Format for commits: `Fix BUG-NNN: short description`
 
 ## Open
 
-### BUG-018 [IN PROGRESS — Codex] Ride replay does not match approved futuristic display direction
+### BUG-018 [FIXED] Ride replay does not match approved futuristic display direction
 **Opened:** 2026-11-10
+**Fixed:** 2026-11-10 by Codex
 **Detail:** The ride detail screen exposes the real route and metrics, but the presentation is still a sparse technical prototype rather than the approved ride-complete composition. The route lacks prominent annotations, aligned elevation/heart-rate context, and a clear replay-focused hierarchy.
-**Planned fix:** Recompose the ride detail view around the approved visual direction while preserving real GPS geometry, measured metrics, duplicate-safe route selection, and existing fallbacks.
+**Fix applied:** Recomposed the Apple Watch ride detail view around the approved ride-complete direction: hero route with start/finish markers and moment callouts, combined elevation/heart-rate profile, metric strip, Explore the ride controls, story highlight, and replay action. Real route geometry, measured metrics, duplicate-safe selection, and map/vector fallbacks remain intact.
 
 ### BUG-015 [FIXED] Daily metric cards can present the last exported reading as today
 **Fixed:** 2026-11-05 by Codex

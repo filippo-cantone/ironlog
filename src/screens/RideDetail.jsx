@@ -137,10 +137,17 @@ function RideMap({ detail, progressIndex }) {
   }, [points, progressIndex]);
 
   return (
-    <div style={{ position: 'relative', height: 300, overflow: 'hidden', background: '#081522', borderRadius: 10, border: `1px solid ${palette.line}` }}>
+    <div style={{ position: 'relative', height: 370, overflow: 'hidden', background: '#081522', borderRadius: 10, border: `1px solid ${palette.line}`, boxShadow: `0 0 24px ${palette.cyan}18 inset` }}>
       {!mapFailed && <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />}
       {mapFailed && <RouteSvg detail={detail} progressIndex={progressIndex} compact />}
-      <div style={{ position: 'absolute', top: 12, left: 12, padding: '5px 9px', borderRadius: 4, background: 'rgba(7,17,29,0.85)', color: palette.cyan, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1 }}>REAL ROUTE · {mapFailed ? 'VECTOR MODE' : 'MAP MODE'}</div>
+      <div style={{ position: 'absolute', top: 12, left: 12, padding: '7px 11px', borderRadius: 5, background: 'rgba(7,17,29,0.9)', color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 1.5, boxShadow: `0 0 14px ${palette.cyan}30` }}>REAL ROUTE · {mapFailed ? 'VECTOR MODE' : 'MAP MODE'}</div>
+      <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, maxWidth: '54%' }}>
+        {routeMoments(detail).map(moment => <div key={moment.label} style={{ background: 'rgba(7,17,29,0.92)', border: `1px solid ${moment.color}`, borderRadius: 7, padding: '6px 9px', color: moment.color, fontFamily: C.fMono, fontSize: 9, letterSpacing: 0.8, textAlign: 'right', boxShadow: `0 0 14px ${moment.color}25` }}><strong style={{ display: 'block', fontSize: 9 }}>{moment.label}</strong><span style={{ color: palette.text }}>{moment.value}</span></div>)}
+      </div>
+      <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12, display: 'flex', justifyContent: 'space-between', pointerEvents: 'none' }}>
+        <span style={{ ...routeMarkerStyle(palette.teal), borderRadius: '5px 18px 18px 5px' }}>● START</span>
+        <span style={{ ...routeMarkerStyle(palette.coral), borderRadius: '18px 5px 5px 18px' }}>FINISH ●</span>
+      </div>
     </div>
   );
 }
@@ -164,10 +171,11 @@ function ThreeTerrain({ detail }) {
     renderer.setSize(width, height, false);
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 1000);
-    camera.position.set(0, 7, 13);
+    camera.position.set(0, 2.4, 11);
     camera.lookAt(0, 0, 0);
     const group = new THREE.Group();
     const points = detail.points.filter(point => point.smoothedAltitude != null).slice(0, 180);
+    if (!points.length) return undefined;
     const min = Math.min(...points.map(point => point.smoothedAltitude));
     const max = Math.max(...points.map(point => point.smoothedAltitude));
     const span = Math.max(1, max - min);
@@ -175,9 +183,9 @@ function ThreeTerrain({ detail }) {
     const profileVertices = [];
     points.forEach((point, index) => {
       const x = points.length > 1 ? (index / (points.length - 1) - 0.5) * 12 : 0;
-      const z = ((point.smoothedAltitude - min) / span - 0.5) * 3;
-      vertices.push(x, -1.2, z, x, 0.0, z);
-      profileVertices.push(x, 0.0, z);
+      const y = ((point.smoothedAltitude - min) / span) * 3.7 - 1.35;
+      vertices.push(x, -1.35, 0, x, y, 0);
+      profileVertices.push(x, y, 0);
     });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
@@ -221,7 +229,72 @@ function ProfileChart({ points = [], field, color, label, units = '' }) {
 }
 
 function Metric({ value, label, color = palette.cyan }) {
-  return <div style={{ flex: 1, minWidth: 90, padding: '10px 9px', borderRight: `1px solid ${palette.line}` }}><div style={{ color, fontFamily: C.fMono, fontSize: 20, fontWeight: 700 }}>{value}</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginTop: 3 }}>{label}</div></div>;
+  return <div style={{ flex: 1, minWidth: 104, padding: '13px 11px', borderRight: `1px solid ${palette.line}` }}><div style={{ color, fontFamily: C.fMono, fontSize: 23, fontWeight: 700, lineHeight: 1.05 }}>{value}</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 }}>{label}</div></div>;
+}
+
+function routeDistance(detail, index) {
+  const point = detail?.points?.[Math.max(0, index)] || detail?.points?.at(-1);
+  return point?.distanceKm == null ? null : Number(point.distanceKm).toFixed(1);
+}
+
+function routeMoments(detail) {
+  return [
+    detail?.strongestClimbIndex >= 0 && { label: 'STRONGEST CLIMB', value: `+${detail.strongestClimbGain ?? '—'} m · ${routeDistance(detail, detail.strongestClimbIndex)} km`, color: palette.amber },
+    detail?.peakHeartIndex >= 0 && { label: 'PEAK HEART RATE', value: `${detail.peakHeartRate ?? '—'} bpm · ${routeDistance(detail, detail.peakHeartIndex)} km`, color: palette.coral },
+    detail?.recoveryIndex >= 0 && { label: 'RECOVERY POINT', value: `HR settled · ${routeDistance(detail, detail.recoveryIndex)} km`, color: palette.teal },
+  ].filter(Boolean);
+}
+
+function RouteProfile({ detail }) {
+  const points = detail?.points || [];
+  const altitudePoints = points.filter(point => point.smoothedAltitude != null);
+  if (altitudePoints.length < 2) return null;
+  const width = 1000;
+  const height = 300;
+  const plotLeft = 72;
+  const plotRight = 950;
+  const plotTop = 46;
+  const plotBottom = 205;
+  const maxDistance = Math.max(0.01, points.at(-1)?.distanceKm || detail.distance || 1);
+  const altValues = altitudePoints.map(point => point.smoothedAltitude);
+  const minAlt = Math.min(...altValues);
+  const maxAlt = Math.max(...altValues);
+  const altSpan = Math.max(1, maxAlt - minAlt);
+  const x = point => plotLeft + (Number(point.distanceKm || 0) / maxDistance) * (plotRight - plotLeft);
+  const y = point => plotBottom - ((Number(point.smoothedAltitude) - minAlt) / altSpan) * (plotBottom - plotTop);
+  const elevationPath = altitudePoints.map((point, index) => `${index ? 'L' : 'M'}${x(point).toFixed(1)},${y(point).toFixed(1)}`).join(' ');
+  const areaPath = `${elevationPath} L${x(altitudePoints.at(-1)).toFixed(1)},${plotBottom} L${x(altitudePoints[0]).toFixed(1)},${plotBottom} Z`;
+  const marker = (index, label, color, yOffset = 25) => {
+    const point = points[index];
+    if (!point) return null;
+    const markerX = x(point);
+    return <g key={`${label}-${index}`}><line x1={markerX} x2={markerX} y1={plotTop - 3} y2={plotBottom + 18} stroke={color} strokeDasharray="4 7" opacity="0.7" /><circle cx={markerX} cy={y(point)} r="7" fill={color} stroke="#d9ffff" strokeWidth="3" /><rect x={Math.max(plotLeft, Math.min(plotRight - 155, markerX - 70))} y={yOffset} width="150" height="25" rx="6" fill="#07111d" stroke={color} strokeWidth="1.5" /><text x={Math.max(plotLeft + 8, Math.min(plotRight - 147, markerX - 62))} y={yOffset + 16} fill={color} fontFamily="JetBrains Mono" fontSize="10" letterSpacing="1">{label}</text></g>;
+  };
+  return (
+    <div style={{ ...panelStyle, marginTop: 10, padding: '16px 10px 10px', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 10px 8px' }}><div style={eyebrowStyle}>RIDE PROFILE</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 10 }}>0–{Number(detail.distance || maxDistance).toFixed(2)} KM</div></div>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ display: 'block', width: '100%', height: 'auto', minHeight: 210 }} role="img" aria-label="Elevation profile and heart rate effort ribbon">
+        <defs><linearGradient id="ride-elevation-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor={palette.cyan} stopOpacity="0.55" /><stop offset="1" stopColor={palette.cyan} stopOpacity="0.04" /></linearGradient></defs>
+        {[plotTop, plotTop + 53, plotTop + 106, plotBottom].map(lineY => <line key={lineY} x1={plotLeft} x2={plotRight} y1={lineY} y2={lineY} stroke={palette.line} strokeDasharray="5 10" />)}
+        <text x="14" y="52" fill={palette.muted} fontFamily="JetBrains Mono" fontSize="11">{Math.round(maxAlt)} m</text>
+        <text x="14" y="208" fill={palette.muted} fontFamily="JetBrains Mono" fontSize="11">{Math.round(minAlt)} m</text>
+        <text x="20" y="27" fill={palette.muted} fontFamily="JetBrains Mono" fontSize="11" letterSpacing="1">ELEVATION (M)</text>
+        <path d={areaPath} fill="url(#ride-elevation-fill)" />
+        <path d={elevationPath} fill="none" stroke={palette.cyan} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+        {marker(detail.strongestClimbIndex, 'CLIMB', palette.amber, 7)}
+        {marker(detail.peakHeartIndex, 'PEAK HR', palette.coral, 37)}
+        {marker(detail.recoveryIndex, 'RECOVERY', palette.teal, 67)}
+        {points.map((point, index) => <rect key={`ribbon-${index}`} x={x(point)} y="232" width={Math.max(1.2, (plotRight - plotLeft) / Math.max(1, points.length)) + 0.8} height="18" rx="2" fill={effortColor(point.effort)} opacity="0.95" />)}
+        <text x="20" y="246" fill={palette.text} fontFamily="JetBrains Mono" fontSize="11">HEART RATE</text>
+        <text x={plotLeft} y="280" fill={palette.muted} fontFamily="JetBrains Mono" fontSize="11">0 km</text>
+        <text x={(plotLeft + plotRight) / 2 - 18} y="280" fill={palette.muted} fontFamily="JetBrains Mono" fontSize="11">{(Number(detail.distance || maxDistance) / 2).toFixed(1)} km</text>
+        <text x={plotRight - 36} y="280" fill={palette.muted} fontFamily="JetBrains Mono" fontSize="11">{Number(detail.distance || maxDistance).toFixed(1)} km</text>
+      </svg>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '5px 10px 0', color: palette.muted, fontFamily: C.fMono, fontSize: 9 }}>
+        {['easy', 'steady', 'moderate', 'hard'].map(item => <span key={item} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><i style={{ width: 9, height: 9, borderRadius: '50%', background: effortColor(item), display: 'inline-block' }} />{item}</span>)}
+      </div>
+    </div>
+  );
 }
 
 export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
@@ -247,6 +320,10 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
   }, [playing, maxIndex]);
 
   const currentPoint = detail?.points?.[Math.min(progressIndex, maxIndex)] || detail?.points?.at(-1);
+  const strongestClimbGain = detail?.strongestClimbGain ?? detail?.ascent ?? null;
+  const rideStory = strongestClimbGain > 0
+    ? `Your strongest rise added ${strongestClimbGain} m of elevation. Heart rate peaked at ${detail?.peakHeartRate ?? '—'} bpm.`
+    : `This was a mostly level route. Your peak heart rate reached ${detail?.peakHeartRate ?? '—'} bpm across the ride.`;
   const isManual = !ride?.sourceId && !ride?.source_id;
   if (loading) return <div style={{ minHeight: '80vh', background: palette.bg, color: palette.cyan, padding: 24, fontFamily: C.fMono, letterSpacing: 1 }}>LOADING RIDE ROUTE…</div>;
 
@@ -264,13 +341,8 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
         <div style={panelStyle}><div style={eyebrowStyle}>ROUTE UNAVAILABLE</div><p style={{ color: palette.muted, lineHeight: 1.5, margin: '8px 0 0' }}>{detail.error || 'The Apple Watch route could not be loaded.'}</p></div>
       ) : detail ? (
         <>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', background: palette.panel, border: `1px solid ${palette.line}`, borderRadius: 10, padding: 5, marginBottom: 10 }}>
-            {['map', 'effort', 'elevation', 'speed'].map(item => <button key={item} onClick={() => setTab(item)} style={{ flex: 1, minWidth: 75, border: 0, borderRadius: 7, padding: '9px 7px', background: tab === item ? palette.cyan : 'transparent', color: tab === item ? palette.bg : palette.muted, fontFamily: C.fMono, fontSize: 10, textTransform: 'uppercase', cursor: 'pointer' }}>{item}</button>)}
-          </div>
-          {tab === 'map' && <div style={{ ...panelStyle, padding: 8 }}><RideMap detail={detail} progressIndex={progressIndex} /><ThreeTerrain detail={detail} /></div>}
-          {tab === 'effort' && <div style={panelStyle}><ProfileChart points={detail.points} field="heartRate" color={palette.coral} label="Heart rate" units="bpm" /><div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 10px 10px' }}>{['easy', 'steady', 'moderate', 'hard'].map(item => <span key={item} style={{ ...pillStyle(effortColor(item)), textTransform: 'capitalize' }}>{item}</span>)}</div></div>}
-          {tab === 'elevation' && <div style={panelStyle}><ProfileChart points={detail.points} field="smoothedAltitude" color={palette.amber} label="Elevation" units="m" />{statLine('Ascent', `+${detail.ascent ?? '—'} m`, palette.amber)}{statLine('Descent', `−${detail.descent ?? '—'} m`, palette.blue)}</div>}
-          {tab === 'speed' && <div style={panelStyle}><ProfileChart points={detail.points} field="speed" color={palette.blue} label="Speed" units="m/s" />{statLine('Fastest sampled speed', detail.maxSpeedKmh != null ? `${detail.maxSpeedKmh} km/h` : 'Unavailable', palette.blue)}</div>}
+          {tab === 'map' && <div style={{ ...panelStyle, padding: 8 }}><RideMap detail={detail} progressIndex={progressIndex} /><div style={{ margin: '5px -1px -5px', borderTop: `1px solid ${palette.line}` }}><ThreeTerrain detail={detail} /></div></div>}
+          {tab === 'map' && <RouteProfile detail={detail} />}
 
           <div style={{ ...panelStyle, display: 'flex', overflowX: 'auto', padding: 0, marginTop: 10 }}>
             <Metric value={`${finite(detail.distance, finite(ride.distance)).toFixed(2)} km`} label="Distance" />
@@ -279,6 +351,17 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
             <Metric value={`${Math.round(finite(detail.averageHeartRate, ride.averageHeartRate))} bpm`} label="Avg HR" color={palette.teal} />
             <Metric value={`${Math.round(finite(detail.peakHeartRate, ride.peakHeartRate))} bpm`} label="Peak HR" color={palette.coral} />
           </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div style={{ color: palette.text, fontFamily: C.fDisplay, fontSize: 23, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>EXPLORE THE RIDE</div>
+            <div style={{ display: 'flex', gap: 0, overflowX: 'auto', background: palette.panel, border: `1px solid ${palette.line}`, borderRadius: 10, padding: 4 }}>
+              {['map', 'effort', 'elevation', 'speed'].map(item => <button key={item} onClick={() => setTab(item)} style={{ flex: 1, minWidth: 82, border: 0, borderRadius: 7, padding: '11px 8px', background: tab === item ? palette.cyan : 'transparent', color: tab === item ? palette.bg : palette.muted, fontFamily: C.fMono, fontSize: 10, textTransform: 'uppercase', cursor: 'pointer', boxShadow: tab === item ? `0 0 18px ${palette.cyan}70` : 'none' }}>{item}</button>)}
+            </div>
+          </div>
+
+          {tab === 'effort' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="heartRate" color={palette.coral} label="Heart rate" units="bpm" /><div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 10px 10px' }}>{['easy', 'steady', 'moderate', 'hard'].map(item => <span key={item} style={{ ...pillStyle(effortColor(item)), textTransform: 'capitalize' }}>{item}</span>)}</div></div>}
+          {tab === 'elevation' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="smoothedAltitude" color={palette.amber} label="Elevation" units="m" />{statLine('Ascent', `+${detail.ascent ?? '—'} m`, palette.amber)}{statLine('Descent', `−${detail.descent ?? '—'} m`, palette.blue)}</div>}
+          {tab === 'speed' && <div style={{ ...panelStyle, marginTop: 10 }}><ProfileChart points={detail.points} field="speed" color={palette.blue} label="Speed" units="m/s" />{statLine('Fastest sampled speed', detail.maxSpeedKmh != null ? `${detail.maxSpeedKmh} km/h` : 'Unavailable', palette.blue)}</div>}
 
           <div style={{ ...panelStyle, marginTop: 10 }}>
             <div style={eyebrowStyle}>RIDE SIGNAL</div>
@@ -293,10 +376,15 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
           <div style={{ ...panelStyle, marginTop: 10, background: `linear-gradient(115deg, ${palette.panelRaised}, ${palette.panel})`, borderColor: `${palette.amber}80` }}>
             <div style={{ color: palette.amber, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' }}>SESSION HIGHLIGHTS</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
-              <div><div style={{ color: palette.amber, fontFamily: C.fMono, fontSize: 16 }}>+{detail.ascent ?? '—'} m</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Strongest climb</div></div>
+              <div><div style={{ color: palette.amber, fontFamily: C.fMono, fontSize: 16 }}>+{strongestClimbGain ?? '—'} m</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Strongest climb</div></div>
               <div><div style={{ color: palette.coral, fontFamily: C.fMono, fontSize: 16 }}>{detail.peakHeartRate ?? '—'} bpm</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Peak effort</div></div>
               <div><div style={{ color: palette.blue, fontFamily: C.fMono, fontSize: 16 }}>{detail.maxSpeedKmh ?? '—'} km/h</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Fastest sample</div></div>
             </div>
+          </div>
+
+          <div style={{ ...panelStyle, marginTop: 10, borderColor: `${palette.amber}90`, background: `linear-gradient(110deg, ${palette.panelRaised}, ${palette.panel})`, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ color: palette.amber, fontSize: 27, lineHeight: 1 }}>★</div>
+            <div style={{ color: palette.text, fontSize: 15, lineHeight: 1.35, fontStyle: 'italic' }}>{rideStory}</div>
           </div>
 
           <div style={{ ...panelStyle, marginTop: 10 }}>
@@ -317,5 +405,6 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
 const panelStyle = { background: palette.panel, border: `1px solid ${palette.line}`, borderRadius: 10, padding: 14 };
 const eyebrowStyle = { color: palette.cyan, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' };
 const pillStyle = color => ({ display: 'inline-flex', alignItems: 'center', border: `1px solid ${color}80`, background: `${color}20`, color, borderRadius: 16, padding: '5px 9px', fontFamily: C.fMono, fontSize: 10 });
+const routeMarkerStyle = color => ({ padding: '6px 10px', background: 'rgba(7,17,29,0.92)', border: `1px solid ${color}`, color, fontFamily: C.fMono, fontSize: 10, letterSpacing: 1, boxShadow: `0 0 12px ${color}40` });
 const buttonStyle = (background, color) => ({ background, color, border: 0, borderRadius: 7, padding: '11px 14px', fontFamily: C.fMono, fontSize: 10, textTransform: 'uppercase', cursor: 'pointer' });
 const statLine = (label, value, color) => <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${palette.line}`, padding: '10px 0 0', marginTop: 5, color: palette.muted, fontFamily: C.fMono, fontSize: 11 }}><span>{label}</span><strong style={{ color }}>{value}</strong></div>;

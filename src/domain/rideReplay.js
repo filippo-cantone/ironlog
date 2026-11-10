@@ -159,6 +159,28 @@ function routeConfidence(points, heartRateSamples) {
   return 'sparse';
 }
 
+function strongestClimb(points = []) {
+  if (points.length < 3) return { index: -1, gain: 0, distanceKm: 0 };
+  const windowSize = Math.max(3, Math.round(points.length / 40));
+  let best = { index: -1, gain: 0, distanceKm: 0 };
+  for (let index = windowSize; index < points.length; index += 1) {
+    const start = points[index - windowSize];
+    const end = points[index];
+    if (start.smoothedAltitude == null || end.smoothedAltitude == null) continue;
+    const gain = end.smoothedAltitude - start.smoothedAltitude;
+    if (gain > best.gain) best = { index, gain, distanceKm: Math.max(0, end.distanceKm - start.distanceKm) };
+  }
+  return { index: best.index, gain: round(best.gain, 0), distanceKm: round(best.distanceKm, 2) };
+}
+
+function recoveryPoint(points = [], averageHeartRate = null, peakHeartIndex = -1) {
+  const average = asNumber(averageHeartRate);
+  if (average == null || peakHeartIndex < 0) return -1;
+  const afterPeak = points.slice(peakHeartIndex + 1);
+  const recovered = afterPeak.find(point => point.heartRate != null && point.heartRate <= average);
+  return recovered ? points.indexOf(recovered) : -1;
+}
+
 function buildRouteAnalytics({ points: rawPoints = [], heartRateSamples = [], energySamples = [], averageHeartRate = null, peakHeartRate = null, distance = null, duration = null } = {}) {
   const base = withCumulativeDistance(normaliseRoutePoints(rawPoints));
   const smoothed = smoothAltitude(base);
@@ -187,6 +209,8 @@ function buildRouteAnalytics({ points: rawPoints = [], heartRateSamples = [], en
   const peakHeartIndex = maxHeartRateValue == null ? -1 : enriched.findIndex(point => point.heartRate === maxHeartRateValue);
   const maxSpeed = speedValues.length ? Math.max(...speedValues) : null;
   const fastestIndex = maxSpeed == null ? -1 : enriched.findIndex(point => point.speed === maxSpeed);
+  const climb = strongestClimb(enriched);
+  const recoveryIndex = recoveryPoint(enriched, averageHeartRate, peakHeartIndex);
   const maxAltitude = altitudeValues.length ? Math.max(...altitudeValues) : null;
   const minAltitude = altitudeValues.length ? Math.min(...altitudeValues) : null;
   const replayPoints = renderPoints.map(point => ({
@@ -210,6 +234,10 @@ function buildRouteAnalytics({ points: rawPoints = [], heartRateSamples = [], en
     maxSpeedKmh: maxSpeed == null ? null : round(maxSpeed * 3.6, 1),
     peakHeartIndex,
     fastestIndex,
+    strongestClimbIndex: climb.index,
+    strongestClimbGain: climb.gain,
+    strongestClimbDistanceKm: climb.distanceKm,
+    recoveryIndex,
     confidence: routeConfidence(enriched, hrSamples),
     routePointCount: enriched.length,
     heartRateSampleCount: hrSamples.length,
@@ -227,5 +255,7 @@ module.exports = {
   normaliseSamples,
   nearestSample,
   buildGeoJsonSegments,
+  strongestClimb,
+  recoveryPoint,
   buildRouteAnalytics,
 };

@@ -166,7 +166,7 @@ The local preference key is `il_activity_goals`. JSON backups at schema version 
 
 ### Futuristic ride replay
 
-Apple Watch cycling rides can be opened from **Rides** for a private route replay. The selected ride loads its GPS route and matching Watch samples on demand, so startup remains lightweight and exact coordinates are not included in AI context. The detail view provides Map, Effort, Elevation, and Speed views, a replay slider, pause/restart controls, start/finish markers, elevation and effort overlays, estimated ascent/descent, and a route data-confidence label.
+Apple Watch cycling rides can be opened from **Rides** for a private route replay. The selected ride loads its GPS route and matching Watch samples on demand, so startup remains lightweight and exact coordinates are not included in AI context. The detail view uses the approved futuristic ride-complete composition: a hero map with start/finish markers and route moments, a combined elevation/heart-rate profile with a colored effort ribbon, metric strip, Map/Effort/Elevation/Speed controls, replay story, and pause/restart controls. It also shows estimated ascent/descent and route data confidence.
 
 When Health Auto Export creates duplicate Apple cycling records, IronLog selects the most complete record and retains the other source IDs for audit. It never merges duplicate routes. Map tiles use OpenStreetMap-compatible tiles with attribution; if tiles or WebGL are unavailable, IronLog falls back to a dark vector route scene. Manual rides remain available without GPS replay.
 

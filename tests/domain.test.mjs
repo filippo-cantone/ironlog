@@ -92,6 +92,8 @@ test('ride replay analytics keep one bounded route and align effort data', () =>
   assert.equal(detail.points.at(-1).longitude, points.at(-1).longitude);
   assert.equal(detail.distance, 17.63);
   assert.equal(detail.heartRateSampleCount, 1);
+  assert.equal(detail.routePointCount <= 900, true);
+  assert.equal(detail.strongestClimbIndex >= 0, true);
   assert.equal(['good', 'limited', 'sparse'].includes(detail.confidence), true);
 });
 

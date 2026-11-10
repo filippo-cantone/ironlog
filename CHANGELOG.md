@@ -21,6 +21,12 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Fixed Elevation and Speed tab crashes that could turn the app view black after opening a ride
 - Increased route glow, strengthened the 3D elevation surface, and added a session highlights strip for ascent, peak heart rate, and fastest sampled speed
 
+## 2026-11-10 — Ride replay visual direction (Codex)
+
+- Fixed [BUG-018](BUGS.md): reshaped the Apple Watch ride detail screen to match the approved futuristic ride-complete composition rather than a sparse technical prototype
+- Added real-route start/finish markers, climb/peak/recovery callouts, a combined elevation and heart-rate profile, colored effort ribbon, metric strip, and “Explore the ride” control band
+- Added a replay story card driven by the actual route analytics; no synthetic route geometry or invented performance values are used
+
 ## 2026-11-05 — Label stale daily Health readings (Codex)
 
 - Fixed [BUG-015](BUGS.md): Home metric cards no longer present a previous day's reading as today's result when Health Auto Export omits the current-day metric
