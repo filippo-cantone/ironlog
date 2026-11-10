@@ -17,7 +17,7 @@ Format for commits: `Fix BUG-NNN: short description`
 **Opened:** 2026-11-10
 **Fixed:** 2026-11-10 by Codex
 **Detail:** Apple Watch cycling exports contain GPS route, altitude, speed, and timestamp data, but the Rides tab only shows summary cards. Duplicate records can expose multiple overlapping traces if route data is rendered without canonical selection.
-**Fix applied:** Cycling exports now choose one most-complete canonical workout before materialising a ride, retain duplicate source IDs for audit, and load the selected route lazily. Tapping an Apple Watch ride opens a private replay view with OpenStreetMap context, route/elevation/effort views, replay controls, route analytics, and a vector fallback when map tiles or WebGL are unavailable. Manual rides and older rides without GPS remain usable.
+**Fix applied:** Cycling exports now choose one most-complete canonical workout before materialising a ride, retain duplicate source IDs for audit, and load the selected route lazily. Tapping an Apple Watch ride opens a private replay view with OpenStreetMap context, route/elevation/effort views, replay controls, route analytics, and a vector fallback when map tiles or WebGL are unavailable. Manual rides and older rides without GPS remain usable. A follow-up crash in the Elevation and Speed tabs was fixed by rendering statistic rows as components rather than style objects; route glow, the 3D surface, and session highlights were also strengthened.
 
 ### BUG-016 [FIXED] Apple Watch cycling workouts are not materialised as rides
 **Opened:** 2026-11-10

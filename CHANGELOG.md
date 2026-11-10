@@ -16,6 +16,11 @@ Reverse-chronological log of all meaningful changes. One entry per change — da
 - Added bounded route analytics for distance, smoothed altitude, estimated ascent/descent, timestamp-aligned heart rate, effort zones, data confidence, and route visualisation
 - Added MapLibre/OpenStreetMap map context, Three.js elevation treatment, and a vector fallback for unavailable map/WebGL resources
 
+## 2026-11-10 — Ride replay stability and visual polish (Codex)
+
+- Fixed Elevation and Speed tab crashes that could turn the app view black after opening a ride
+- Increased route glow, strengthened the 3D elevation surface, and added a session highlights strip for ascent, peak heart rate, and fastest sampled speed
+
 ## 2026-11-05 — Label stale daily Health readings (Codex)
 
 - Fixed [BUG-015](BUGS.md): Home metric cards no longer present a previous day's reading as today's result when Health Auto Export omits the current-day metric

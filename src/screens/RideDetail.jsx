@@ -124,6 +124,10 @@ function RideMap({ detail, progressIndex }) {
         id: 'ride-route', type: 'line', source: 'ride-route',
         paint: { 'line-color': ['match', ['get', 'effort'], 'hard', palette.coral, 'moderate', palette.amber, 'easy', palette.teal, palette.cyan], 'line-width': 5, 'line-opacity': 0.95 },
       });
+      map.addLayer({
+        id: 'ride-route-glow', type: 'line', source: 'ride-route',
+        paint: { 'line-color': palette.cyan, 'line-width': 13, 'line-opacity': 0.18, 'line-blur': 3 },
+      }, 'ride-route');
     });
     return () => { map.remove(); mapRef.current = null; routeSourceRef.current = null; };
   }, [detail?.sourceId]);
@@ -149,7 +153,13 @@ function ThreeTerrain({ detail }) {
     if (!THREE || !canvas || !detail?.points?.length) return undefined;
     const width = canvas.clientWidth || 500;
     const height = canvas.clientHeight || 150;
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    } catch (error) {
+      console.warn('IronLog ride terrain unavailable:', error);
+      return undefined;
+    }
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(width, height, false);
     const scene = new THREE.Scene();
@@ -162,15 +172,21 @@ function ThreeTerrain({ detail }) {
     const max = Math.max(...points.map(point => point.smoothedAltitude));
     const span = Math.max(1, max - min);
     const vertices = [];
+    const profileVertices = [];
     points.forEach((point, index) => {
       const x = points.length > 1 ? (index / (points.length - 1) - 0.5) * 12 : 0;
       const z = ((point.smoothedAltitude - min) / span - 0.5) * 3;
       vertices.push(x, -1.2, z, x, 0.0, z);
+      profileVertices.push(x, 0.0, z);
     });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     const material = new THREE.LineBasicMaterial({ color: 0x18e0e7, transparent: true, opacity: 0.95 });
     group.add(new THREE.LineSegments(geometry, material));
+    const profileGeometry = new THREE.BufferGeometry();
+    profileGeometry.setAttribute('position', new THREE.Float32BufferAttribute(profileVertices, 3));
+    const profileMaterial = new THREE.LineBasicMaterial({ color: 0x9dffff, transparent: true, opacity: 0.9 });
+    group.add(new THREE.Line(profileGeometry, profileMaterial));
     const grid = new THREE.GridHelper(14, 14, 0x1b4b68, 0x102c40);
     grid.rotation.x = Math.PI / 2;
     grid.position.y = -1.22;
@@ -179,9 +195,9 @@ function ThreeTerrain({ detail }) {
     let frame;
     const animate = () => { group.rotation.y = -0.22 + Math.sin(Date.now() / 6000) * 0.04; renderer.render(scene, camera); frame = requestAnimationFrame(animate); };
     animate();
-    return () => { cancelAnimationFrame(frame); geometry.dispose(); material.dispose(); renderer.dispose(); };
+    return () => { cancelAnimationFrame(frame); geometry.dispose(); material.dispose(); profileGeometry.dispose(); profileMaterial.dispose(); renderer.dispose(); };
   }, [detail]);
-  return <canvas ref={canvasRef} style={{ width: '100%', height: 150, display: 'block' }} aria-label="Three dimensional elevation terrain" />;
+  return <canvas ref={canvasRef} style={{ width: '100%', height: 180, display: 'block' }} aria-label="Three dimensional elevation terrain" />;
 }
 
 function ProfileChart({ points = [], field, color, label, units = '' }) {
@@ -253,8 +269,8 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
           </div>
           {tab === 'map' && <div style={{ ...panelStyle, padding: 8 }}><RideMap detail={detail} progressIndex={progressIndex} /><ThreeTerrain detail={detail} /></div>}
           {tab === 'effort' && <div style={panelStyle}><ProfileChart points={detail.points} field="heartRate" color={palette.coral} label="Heart rate" units="bpm" /><div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 10px 10px' }}>{['easy', 'steady', 'moderate', 'hard'].map(item => <span key={item} style={{ ...pillStyle(effortColor(item)), textTransform: 'capitalize' }}>{item}</span>)}</div></div>}
-          {tab === 'elevation' && <div style={panelStyle}><ProfileChart points={detail.points} field="smoothedAltitude" color={palette.amber} label="Elevation" units="m" /><div style={statLine('Ascent', `+${detail.ascent ?? '—'} m`, palette.amber)} /><div style={statLine('Descent', `−${detail.descent ?? '—'} m`, palette.blue)} /></div>}
-          {tab === 'speed' && <div style={panelStyle}><ProfileChart points={detail.points} field="speed" color={palette.blue} label="Speed" units="m/s" /><div style={statLine('Fastest sampled speed', detail.maxSpeedKmh != null ? `${detail.maxSpeedKmh} km/h` : 'Unavailable', palette.blue)} /></div>}
+          {tab === 'elevation' && <div style={panelStyle}><ProfileChart points={detail.points} field="smoothedAltitude" color={palette.amber} label="Elevation" units="m" />{statLine('Ascent', `+${detail.ascent ?? '—'} m`, palette.amber)}{statLine('Descent', `−${detail.descent ?? '—'} m`, palette.blue)}</div>}
+          {tab === 'speed' && <div style={panelStyle}><ProfileChart points={detail.points} field="speed" color={palette.blue} label="Speed" units="m/s" />{statLine('Fastest sampled speed', detail.maxSpeedKmh != null ? `${detail.maxSpeedKmh} km/h` : 'Unavailable', palette.blue)}</div>}
 
           <div style={{ ...panelStyle, display: 'flex', overflowX: 'auto', padding: 0, marginTop: 10 }}>
             <Metric value={`${finite(detail.distance, finite(ride.distance)).toFixed(2)} km`} label="Distance" />
@@ -272,6 +288,15 @@ export default function RideDetail({ ride, detail, loading, onBack, onLoad }) {
               <div><div style={{ color: detail.confidence === 'good' ? palette.teal : palette.amber, fontSize: 19, fontFamily: C.fMono, textTransform: 'capitalize' }}>{detail.confidence}</div><div style={{ color: palette.muted, fontSize: 10 }}>DATA QUALITY</div></div>
             </div>
             <p style={{ color: palette.text, lineHeight: 1.45, margin: '14px 0 0' }}>Your route data combines GPS position, altitude, speed, and heart-rate timing. Elevation totals are estimates because GPS altitude can be noisy.</p>
+          </div>
+
+          <div style={{ ...panelStyle, marginTop: 10, background: `linear-gradient(115deg, ${palette.panelRaised}, ${palette.panel})`, borderColor: `${palette.amber}80` }}>
+            <div style={{ color: palette.amber, fontFamily: C.fMono, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' }}>SESSION HIGHLIGHTS</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
+              <div><div style={{ color: palette.amber, fontFamily: C.fMono, fontSize: 16 }}>+{detail.ascent ?? '—'} m</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Strongest climb</div></div>
+              <div><div style={{ color: palette.coral, fontFamily: C.fMono, fontSize: 16 }}>{detail.peakHeartRate ?? '—'} bpm</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Peak effort</div></div>
+              <div><div style={{ color: palette.blue, fontFamily: C.fMono, fontSize: 16 }}>{detail.maxSpeedKmh ?? '—'} km/h</div><div style={{ color: palette.muted, fontFamily: C.fMono, fontSize: 9, textTransform: 'uppercase' }}>Fastest sample</div></div>
+            </div>
           </div>
 
           <div style={{ ...panelStyle, marginTop: 10 }}>
