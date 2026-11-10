@@ -206,7 +206,11 @@ function buildRouteAnalytics({ points: rawPoints = [], heartRateSamples = [], en
   const heartRates = enriched.map(point => point.heartRate).filter(value => value != null);
   const actualDistance = asNumber(distance) ?? enriched.at(-1)?.distanceKm ?? 0;
   const maxHeartRateValue = asNumber(peakHeartRate) ?? (heartRates.length ? Math.max(...heartRates) : null);
-  const peakHeartIndex = maxHeartRateValue == null ? -1 : enriched.findIndex(point => point.heartRate === maxHeartRateValue);
+  const peakHeartIndex = maxHeartRateValue == null ? -1 : enriched.reduce((bestIndex, point, index) => {
+    if (point.heartRate == null) return bestIndex;
+    if (bestIndex < 0) return index;
+    return Math.abs(point.heartRate - maxHeartRateValue) < Math.abs(enriched[bestIndex].heartRate - maxHeartRateValue) ? index : bestIndex;
+  }, -1);
   const maxSpeed = speedValues.length ? Math.max(...speedValues) : null;
   const fastestIndex = maxSpeed == null ? -1 : enriched.findIndex(point => point.speed === maxSpeed);
   const climb = strongestClimb(enriched);
